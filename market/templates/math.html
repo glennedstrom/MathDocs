@@ -1,0 +1,349 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Math Docs
+{% endblock %}
+
+
+{% block content %}
+    <!--
+    TODO autocomplete textboxes seem neat https://www.w3schools.com/howto/howto_js_autocomplete.asp
+
+    vim mode
+        auto normal mode on enter option
+
+    -->
+
+
+
+<!-- Mathquill javascript -->
+<script>
+    /**
+     * Foo takes any argument.
+     * The return value is 'baz' in all cases.
+     * @param {*} bar - Any argument
+     * @param {string} [optionalArg] - An optional argument that is a string
+     */
+
+    /**
+    * The return value is a list of the answers in the custom binary order listed below, not your order
+    * 1
+    * 10
+    * 100
+    * @param {string} latex - math equation in latex format
+    * @param {list[string]} options - a list of the sympy function names you want to perform on the equation
+    * @param {list} vars - a list of variables used in your latex equation in case they are not auto-detected by sympy
+    */
+    let mode
+    function sympy(latex, options, vars=[]) { // send the options over in binary with 1 being on and 0 off
+        let MQ
+        if (typeof latex !== "string") { // swap this for === mathquillobject
+            MQ = latex
+            latex = MQ.latex()
+        }
+        let parameters = {l: latex}
+        if (MQ && MQ.el() === $('.equation')[0]) {
+            parameters['f'] = ''
+        }
+        // make sure that the binary starts from the right so if you add more options, it can handle it
+        const endpoint = new URLSearchParams(parameters);
+
+        // maybe batch a bunch of these together on a update/recheck all button to update it if the user changes the original equation
+        //or just batch and recheck all of them if the first equation is changed. may have to do that on focus-lost to ensure it's the latest version
+        $.getJSON('/sympy?' + endpoint.toString(), function(data) {}) // call python function
+        .always(function(data) {//after the response from python has arrived
+            if (data.status === 200) {
+                const d = data.responseText.split(',')
+                console.log(d)
+                if (d[0] == 'True') {
+                    eqs = $('.equation')
+                    //first element changed, clear the other item's classes to unsolved // store this equation if you want to ever use it to check on the js side
+                    if (eqs[0] === MQ.el()) {
+                        eqs.each(function(i){
+                            if (!eqs[i].classList.contains('unsolved')) {
+                                eqs[i].classList.add('unsolved')
+                            }
+                            if (eqs[i].classList.contains('correct')) {
+                                eqs[i].classList.remove('correct')
+                            }
+                            if (eqs[i].classList.contains('incorrect')) {
+                                eqs[i].classList.remove('incorrect')
+                            }
+                        })
+                    }
+                    // remove blue outline because it's correct 
+                    if (MQ.el().classList.contains('unsolved')) {
+                        MQ.el().classList.remove('unsolved')
+                    }
+                    if (MQ.el().classList.contains('incorrect')) {
+                        MQ.el().classList.remove('incorrect')
+                    }
+                }
+                else {
+                    // add css for incorrect
+                    if (MQ.el().classList.contains('unsolved')) {
+                        MQ.el().classList.remove('unsolved')
+                    }
+                    MQ.el().classList.add('incorrect')
+                }
+            }
+            else {
+                console.log("Error:", data.status, "from ajax request to python")
+            }
+            //do stuff and style css here from the response if it was right or wrong
+        })
+    }
+</script>
+<script>
+    var MQ = MathQuill.getInterface(2);
+</script>
+<script>
+    //saving and loading url encodes the data to be able to store it in localStorage
+    function save() {
+        //comma injection will only add extra rows, not sure if it applies anymore because it's url encoded but might apply when you unpack then split
+        const selector = $('.equation')
+        let data = []
+        selector.each(function(index) {
+            const endpoint = new URLSearchParams({latex: MQ($(this)[0]).latex()}); //url encode the string because localStorage can't handle many symbols
+            data.push(endpoint.toString().replace("%E2%80%8B",'')) // the replace is to delete the cursor from the text
+        })
+        localStorage.setItem('equations', data)
+    }
+
+    function load() {
+        var localstore = localStorage.getItem('equations')
+        if (localstore){
+            localstore = localstore.split(",") || []
+            localstore.forEach(function(i) {
+                const endpoint = new URLSearchParams(i);
+                addMathBox(endpoint.get('latex'))
+            })
+        }
+        if ($('.equation').length === 0) {
+            addMathBox()
+        }
+    }
+
+    var correct = null
+
+    //TODO: add x buttons in each row
+    //Parameters are for initializing only, they are outdated in the functions
+    //add a 'solving in terms of which variable' option if there are multiple variables in the equation //also make {y: 0} recognize that if you solve for y, the answer is [0]
+    function addMathBox(latex='', index=-1) {
+        //or maybe the string version // add the index so that you can insert it in the middle if you press enter on a middle textbox
+        // create the math span
+        const span = document.createElement("span")
+        span.classList.add("equation")
+        span.classList.add("align-self")
+        span.classList.add("unsolved")
+        span.textContent = latex
+
+        //you can probably just use the existing class to find where the cursor is... smh
+        if (index != -1) {
+            //add the span to the html
+            $(span).insertAfter($('.equation')[index])
+            index += 1
+        } else {
+            document.getElementById('equations').appendChild(span)
+        }
+
+        // mathify the text boxes and add the functions
+        let answerMathField = MQ.MathField(span, {
+            autoCommands: "sqrt int pi theta",
+            //autoOperatorNames: "sin cos tan sec csc cot",
+
+            handlers: {
+                edit: function() {
+                    var enteredMath = answerMathField.latex();
+                    // Get entered math in LaTeX format
+                    //sympy(answerMathField.latex()); 'math debug mode'? to check the answer more often, or if it isn't slow make this regular to change the color
+                    //or make a check answer key/button to check your work
+                    if (!span.classList.contains('unsolved')) {
+                        span.classList.add('unsolved')
+                    }
+                },
+                enter: function() {
+                    //figuring out how to make the cursor move to the same position in the new text would be great
+                    save()//cursor is text for some reason
+                    addMathBox(answerMathField.latex(), $('.equation').index(span))
+                    cursor = $('.mq-cursor')[0]
+                    //console.log(cursor.innerHTML)
+                    MQ($(span).next('.equation')[0]).focus()
+
+                    sympy(answerMathField) //asynchronous with ajax, returns nothing and updates css
+                },
+                deleteOutOf: function(direction, mathField) {
+                    //delete text boxes with backspace
+                    if (mathField.el().innerText.length === 1) {
+                        // if it's empty, not sure why but 1 length is empty
+                        const jq = $('.equation')
+                        index = jq.index(mathField.el())
+                        if (direction + index === -1 | direction + index >= jq.length) {
+                            return
+                        }
+                        MQ(jq[index + direction]).focus()//move cursor
+                        mathField.el().remove()//delete box
+                        save()
+                    }
+                },
+                upOutOf: function(mathField) {
+                    const jq = $('.equation')
+                    index = jq.index(mathField.el())
+
+                    if (index === 0) {
+                        return
+                    }
+                    MQ(jq[index - 1]).focus()
+                    //move cursor
+                },
+                downOutOf: function(mathField) {
+                    const jq = $('.equation')
+                    index = jq.index(mathField.el())
+
+                    if (index === jq.length - 1) {
+                        return
+                    }
+                    MQ(jq[index + 1]).focus()
+                    //move cursor
+                }// TODO: fix upOutOf and downOutOf to go straight up and not just to your previous cursor location
+            }
+        });
+
+        return answerMathField
+    }
+
+
+    function clearAll() {
+        $('.equation').remove()
+        addMathBox()
+    }
+</script>
+
+<script>
+        function saveAs(uri, filename) {
+
+            var link = document.createElement('a');
+
+            if (typeof link.download === 'string') {
+
+                link.href = uri;
+                link.download = filename;
+
+                //Firefox requires the link to be in the body
+                document.body.appendChild(link);
+
+                //simulate click
+                link.click();
+
+                //remove the link when done
+                document.body.removeChild(link);
+
+            } else {
+
+                window.open(uri);
+
+            }
+        }
+
+
+        function download(){
+            html2canvas(document.querySelector('#download-area')).then(function(canvas) {
+                saveAs(canvas.toDataURL(), 'file-name.png');//assignment name and problem number here
+            })
+        }
+
+    </script>
+
+
+
+<!-- Main HTML -->
+<p>
+    <span id="problem">ax^2 + bx + c = 0</span>
+</p>
+
+<div id="settings" class="container">
+</div>
+
+<div id="u-sub">
+</div>
+
+<div class="container">
+    <button class="btn btn-danger" onclick="clearAll()">Clear all</button>
+    <button class="btn btn-info" onclick="download()">Download</button>
+    <div id="download-area">
+        <div id="equations" class="bg-dark align-self-center">
+        <!-- {% for equation in saved_eq %}
+                    <script>addMathBox({{equation | safe}})</script>         this is if you add a database on the server side, currently everything is stored locally with js
+                {% endfor %} -->
+        </div>
+    </div>
+</div>
+<h3>Dev Notes</h3>
+<ol>
+    <li>adding u-sub and other variables is probably easy, just add them to the url query as key-value pairs then figure it out from there with .subs() or some other stuff</li>
+    <li>transform sympy method is used for u-substitution</li>
+    <li>store all of the correct equations verified by sympy in a dictionary with the key being the original equation and the values being a list of all the rest. (not sure about the structure, but store it somehow with all of the items inside)</li>
+    <li>create settings panel and assignments 'filesystem' and update the #download-area to have titles/and assingment info</li>
+</ol>
+<div id='output'>
+
+</div>
+
+
+<script>
+    var problemSpan = document.getElementById('problem');
+    MQ.StaticMath(problemSpan);
+
+    let equation = null
+    $(function() {
+        $("#carat").click(function() {
+            console.log("Carat variables updated")
+            equations = $('.equation')
+            console.log("equations = $('.equation')")
+
+        });
+    });
+
+    $(function() {
+        // main function
+        load()
+        MQ($(".equation").get(-1)).focus()
+        // move cursor to the last equation box on the page
+    })
+</script>
+{% endblock %}
+
+
+{% block style %}
+<style>
+    .equation {
+        border-width: 2px;
+        padding: 10px 10px;
+        width: 100%;
+    }
+
+    .unsolved {
+        border-color: #007bff;
+    }
+
+    .correct {
+        /* maybe just leave this blank, and have it red if it's incorrect */
+        border-color: #28a745;
+    }
+
+    .incorrect {
+        border-color: #dc3545;
+    }
+
+    #equations {
+        padding: 10px 10px;
+        background-color: #212121;
+        display: flex;
+        flex-direction: column;
+    }
+</style>
+{% endblock %}
+
+
+
+
