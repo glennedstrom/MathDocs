@@ -6,9 +6,7 @@ from sympy.parsing.latex import parse_latex
 
 def equivalent(eq1, eq2):
     if type(eq1) == sympy.Eq:
-        print(eq1)
         eq1 = eq1[0] - eq1[1]
-        print(eq1)
         sympy.doit(eq1)
 
     if type(eq2) == sympy.Eq:
@@ -21,14 +19,11 @@ def equivalent(eq1, eq2):
 def solve(input):
     if type(input) != str:
         csv_append(sympy.latex(input))
-    print(input)
     if type(input) in [sympy.Integral, sympy.Derivative]:
         input = input.doit()
-    print(input)
 
     if type(input) in [sympy.Add, sympy.Mul, sympy.Eq]:
         input = sympy.solve(input)
-    print(input, "\n", sep='')
     return input
 
 
