@@ -19,3 +19,4 @@ SQLAlchemy==1.4.29
 sympy==1.9
 Werkzeug==2.0.2
 WTForms==3.0.1
+antlr4-python3-runtime==4.7.2
