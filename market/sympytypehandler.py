@@ -16,15 +16,20 @@ def equivalent(eq1, eq2):
 
     if eq1.equals(eq2) and sympy.simplify(eq1 - eq2):
         return True
+    return False
 
 def solve(input):
-    
+    if type(input) != str:
+        csv_append(sympy.latex(input))
+    print(input)
     if type(input) in [sympy.Integral, sympy.Derivative]:
         input = input.doit()
+    print(input)
 
     if type(input) in [sympy.Add, sympy.Mul, sympy.Eq]:
         input = sympy.solve(input)
-    return input    
+    print(input, "\n", sep='')
+    return input
 
 
 def main(equations): #just for testing
@@ -35,7 +40,7 @@ def main(equations): #just for testing
 
 def csv_append(latex):
     with open('market/example_equations.csv', 'a') as f:
-        f.write(latex+'\n')
+        f.write(str(latex)+'\n')
 
 
 if __name__ == "__main__":
