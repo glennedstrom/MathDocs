@@ -8,7 +8,7 @@ from market import db
 #from matplotlib import pyplot as plt
 import sys
 
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+#from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 from sympy.parsing.latex import parse_latex
 import sympy
@@ -30,39 +30,47 @@ def checkAnswer():
     correct = False
     latex=request.args.get('l')
     f=request.args.get('f')!=None
-    equation = parse_latex(latex)#.simplify()#.doit()
 
+    #remove invalid characters
+    latex = latex.replace(r"\ ", "") #user space
+    latex = latex.replace(r"\int_{ }^{ }", r"\int ") # blank integral
+    latex = latex.replace(r"\int_{}^{}", r"\int ") # integral with space added to remove boxes
+
+
+    try:
+        equation = parse_latex(latex)#.simplify()#.doit()
+    except Exception as e:
+        return "parsing error", e
+
+    #solve and simplify
     equation = sympytypehandler.solve(equation)
     print(equation)
 
+    #if type(equation) != sympy.Eq:
+    #    equation = sympy.Eq(equation, 0)
 
-    print(type(equation))
-    """
-    if type(equation) == sympy.Integral or type(equation) == sympy.Derivative:
-        ans=equation.doit()
-        if ans:equation = ans
-    elif type(equation) == sympy.Eq:
-        ans = sympy.solve(equation)
-        if ans:equation = ans
-    else:
-        print( "Type not recognized:" + str(type(equation)) + "; " + str(equation) )
-        return ( "Type not recognized:" + str(type(equation)) + "; " + str(equation) )
-    """
+
     if f: #update main equation stuff
         original = equation
     elif not original:
-        print("Original non-existing right now, make sure you check all of the answers when you load them in on javascript to suppress this error. batch requests to make it take less requests too")
+        print("original variable does not exist: make sure you check all of the answers when you load them in on javascript to suppress this error. batch requests to make it take less requests too")
+        print("press enter in the top box to solve the original equation")
 
 
-    print(equation)
     if type(equation) == list:
+        print(equation)
         a = True
         for i in equation:
             a*= i in original
         correct = bool(a)
     else:
-        if equation.equals(original) and sympy.simplify(original - equation):
+        if sympy.simplify(original - equation):
+            print("solved", file=sys.stderr)
+            if not equation.equals(original):
+                print("your solution sucks, sympy solved it better", file=sys.stderr)
             correct = True
+        else:
+            print(equation, "is incorrect", file=sys.stderr)
     return ','.join([str(i) for i in [correct, equation]])
 
 @app.route('/')
