@@ -25,3 +25,59 @@
 \int \frac{\sin{\left(x \right)}}{\cos{\left(x \right)}}\, dx
 \left(6 x^{2} + 5 x\right) + 1
 \left(6 x^{2} + 5 x\right) + 2
+y = b + m x
+\sec^{2}{\left(x \right)}
+\sec^{2}{\left(x \right)}
+\sec^{2}{\left(x \right)}
+\tan{\left(x \right)} \sec{\left(x \right)}
+\tan{\left(x{\left(\frac{1}{\cos{\left(x \right)}} \right)} \right)}
+\tan{\left(\frac{x}{\cos{\left(x \right)}} \right)}
+\tan{\left(\frac{x}{\sin{\left(x \right)}} \right)}
+y = b + m x
+- b + y = m x
+- m + \frac{- b + y}{x} = 0
+- m + \frac{- b + y}{x} = 0
+\frac{- b + y}{x} = m
+- b + y = m x + 1
+- m + \left(- \frac{b}{x} + \frac{y}{x}\right) = 0
+- m + \frac{y}{x} = \frac{b}{x}
+- m + \frac{y}{x} = \frac{b}{x}
+- m + \left(- \frac{b}{x} + \frac{y}{x}\right) = 0
+- m + \frac{- b + y}{x} = 0
+\frac{- b + y}{x} = - m
+\frac{- b + y}{x} = m
+- b + y = m x
+y = b + m x
+2 \pi + \left(2 \pi x - 2 \cos{\left(\pi \right)}\right)
+\int\limits_{0}^{22} \left(2 \pi + \left(\pi x - 2 \cos{\left(\pi \right)}\right)\right)\, dx
+2 \pi x + \left(\pi x^{2} - 2 x \cos{\left(\pi \right)}\right)
+2 \pi x + \left(\pi x^{2} - 2 x \cos{\left(\pi \right)}\right)
+2 \pi 2 + \left(2^{2} \pi - 4 \cos{\left(\pi \right)}\right)
+4 \pi + \left(2^{2} \pi - 4 \cos{\left(\pi \right)}\right)
+4 \pi + \left(4 \pi - 4 \cos{\left(\pi \right)}\right)
+4 \pi + \left(4 \pi + 4\right)
+4 \pi + \left(4 \pi + 4\right)
+8 \pi + 4
+\frac{2 \cos{\left(y \right)}}{3} + 2
+\int\limits_{- \pi}^{\pi} \left(\frac{2 \cos{\left(y \right)}}{3} + 2\right)\, dy
+2 y + \frac{2 \sin{\left(y \right)}}{3}
+- (- 2 \pi + \frac{2 \sin{\left(- \pi \right)}}{3}) + \left(2 \pi + \frac{2 \sin{\left(\pi \right)}}{3}\right)
+- (- 2 \pi + \frac{2 \sin{\left(- \pi \right)}}{3}) + \left(2 \pi + \frac{2 \sin{\left(\pi \right)}}{3}\right)
+2 \pi + \left(\left(2 \pi + \frac{2 \sin{\left(\pi \right)}}{3}\right) - \frac{2 \sin{\left(- \pi \right)}}{3}\right)
+4 \pi + \left(- \frac{2 \sin{\left(- \pi \right)}}{3} + \frac{2 \sin{\left(\pi \right)}}{3}\right)
+4 \pi + \left(- \frac{2 \sin{\left(\pi \right)}}{3} + \frac{2 \sin{\left(\pi \right)}}{3}\right)
+4 \pi + \left(- \frac{2 \sin{\left(\pi \right)}}{3} + \frac{2 \sin{\left(\pi \right)}}{3}\right)
+4 \pi
+\int\limits_{0}^{x} x y^{2}\, dy
+\frac{x y^{3}}{3}
+- \frac{0^{3} x}{3} + \frac{x x^{3}}{3}
+\frac{x^{4}}{3}
+\int\limits_{0}^{x} x y^{2}\, dy = 0
+- \frac{0^{3} x}{3} + \frac{x x^{3}}{3} = 0
+\frac{x^{4}}{3} = 0
+\frac{x^{4}}{3}
+\int\limits_{0}^{x} x y^{2}\, dy
+\int\limits_{0}^{x} x y^{2}\, dy
+\frac{x y^{3}}{3}
+\frac{x y^{3}}{3}
+\frac{x y^{3}}{3}

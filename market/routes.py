@@ -76,7 +76,7 @@ def checkAnswer():
 @app.route('/')
 @app.route('/home/')
 def home_page():
-    return render_template('home.html')
+    return render_template("math.html")#('home.html')
 
 #saved_eq = ["y=mx+b", "a^2+b^2=c^2", '"e=mc^2"']
 
