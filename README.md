@@ -2,14 +2,14 @@
 # Math site
 
 ## Table of contents
-# description
-# installation
-# other_notes
-# TODO
+ description
+ installation
+ other_notes
+ TODO
 
 
 # description
-This site is a site to allow you to work through math problems easily while showing your work on the way, and it will auto-check you every step of the way to let you know if you messed up.
+This site is a site to allow you to work through math problems and show your work easily, and it will auto-check you every step of the way to let you know if you messed up.
 
 # installation
 # virtual environment reccomended because there is a lot of packages
