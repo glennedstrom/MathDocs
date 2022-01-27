@@ -1,19 +1,19 @@
 # MathDocs
 
 ## Table of contents
- description
+ Description
  
- installation
+ Installation
  
- other_notes
+ Other_notes
  
  TODO
 
 
-## description
+## Description
 This site is a site to allow you to work through math problems and show your work easily, and it will auto-check you every step of the way to let you know if you messed up.
 
-## installation
+## Installation
 ### virtual environment reccomended because there is a lot of packages
 ### cd to the main directory MathDocs first
 
@@ -37,7 +37,7 @@ This site is a site to allow you to work through math problems and show your wor
 - to host it publicly, you will need to port forward your local ip with the port 1194 in your router's settings, then you will be able to access your site from any computer if you go to the url which will be your http://publicIP:1194
 
 
-## other_notes
+## Other_notes
 polyfill is to make your website more accessible to older browsers, talked about in the last video on the playlist above (FCC jQuery series)
 
 
