@@ -264,14 +264,26 @@
 <div id="u-sub">
 </div>
 
+<form method=post enctype=multipart/form-data>
+  <input type=file name=file>
+  <input type=submit value=Upload>
+</form>
+
 <div class="container">
     <button class="btn btn-danger" onclick="clearAll()">Clear all</button>
     <button class="btn btn-info" onclick="download()">Download</button>
-    <div id="download-area">
+    <div id="download-area", class="capture-wrapper">
         <div id="equations" class="bg-dark align-self-center">
-        <!-- {% for equation in saved_eq %}
-                    <script>addMathBox({{equation | safe}})</script>         this is if you add a database on the server side, currently everything is stored locally with js
-                {% endfor %} -->
+            {% for equation in equations %}
+                {% if equation %}
+                <meta id="my-data" data-name="{{equation | safe}}">
+                <script>
+                    var d = $('#my-data')
+                    addMathBox( d.data().name )
+                    d.remove()
+                </script><!--         this is if you add a database on the server side, currently everything is stored locally with js-->
+                {% endif %}
+            {% endfor %}
         </div>
     </div>
 </div>

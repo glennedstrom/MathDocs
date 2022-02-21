@@ -1,5 +1,7 @@
 2 x^{2} + 2 x=10
 8 x^{2} + 8 x + 2
+
+
 8*x**2 + 8*x + 2
 8*x**2 + 8*x + 2
 2 x^{2} + 2 x = 10
@@ -14,15 +16,15 @@
 \left(8 x^{2} + 8 x\right) + 2
 8 x
 8 x
-\int \tan{\left(x \right)}\, dx
-\int \tan{\left(x \right)}\, dx
-\int \tan{\left(x \right)}\, dx
-\int \tan{\left(x \right)}\, dx
-\int \frac{\sin{\left(x \right)}}{\cos{\left(x \right)}}\, dx
-\int \frac{\sin{\left(x \right)}}{\cos{\left(x \right)}}\, dx
-\int \tan{\left(x \right)}\, dx
-\int \tan{\left(x \right)}\, dx
-\int \frac{\sin{\left(x \right)}}{\cos{\left(x \right)}}\, dx
+\\int \\tan{\\left(x \\right)}\\ dx
+\int \tan{\left(x \right)}\ dx
+\int \tan{\left(x \right)}\ dx
+\int \tan{\left(x \right)}\ dx
+\int \frac{\sin{\left(x \right)}}{\cos{\left(x \right)}}\ dx
+\int \frac{\sin{\left(x \right)}}{\cos{\left(x \right)}}\ dx
+\int \tan{\left(x \right)}\ dx
+\int \tan{\left(x \right)}\ dx
+\int \frac{\sin{\left(x \right)}}{\cos{\left(x \right)}}\ dx
 \left(6 x^{2} + 5 x\right) + 1
 \left(6 x^{2} + 5 x\right) + 2
 y = b + m x
@@ -49,7 +51,7 @@ y = b + m x
 - b + y = m x
 y = b + m x
 2 \pi + \left(2 \pi x - 2 \cos{\left(\pi \right)}\right)
-\int\limits_{0}^{22} \left(2 \pi + \left(\pi x - 2 \cos{\left(\pi \right)}\right)\right)\, dx
+\int\limits_{0}^{22} \left(2 \pi + \left(\pi x - 2 \cos{\left(\pi \right)}\right)\right)\ dx
 2 \pi x + \left(\pi x^{2} - 2 x \cos{\left(\pi \right)}\right)
 2 \pi x + \left(\pi x^{2} - 2 x \cos{\left(\pi \right)}\right)
 2 \pi 2 + \left(2^{2} \pi - 4 \cos{\left(\pi \right)}\right)
@@ -59,7 +61,7 @@ y = b + m x
 4 \pi + \left(4 \pi + 4\right)
 8 \pi + 4
 \frac{2 \cos{\left(y \right)}}{3} + 2
-\int\limits_{- \pi}^{\pi} \left(\frac{2 \cos{\left(y \right)}}{3} + 2\right)\, dy
+\int\limits_{- \pi}^{\pi} \left(\frac{2 \cos{\left(y \right)}}{3} + 2\right)\ dy
 2 y + \frac{2 \sin{\left(y \right)}}{3}
 - (- 2 \pi + \frac{2 \sin{\left(- \pi \right)}}{3}) + \left(2 \pi + \frac{2 \sin{\left(\pi \right)}}{3}\right)
 - (- 2 \pi + \frac{2 \sin{\left(- \pi \right)}}{3}) + \left(2 \pi + \frac{2 \sin{\left(\pi \right)}}{3}\right)
@@ -68,16 +70,73 @@ y = b + m x
 4 \pi + \left(- \frac{2 \sin{\left(\pi \right)}}{3} + \frac{2 \sin{\left(\pi \right)}}{3}\right)
 4 \pi + \left(- \frac{2 \sin{\left(\pi \right)}}{3} + \frac{2 \sin{\left(\pi \right)}}{3}\right)
 4 \pi
-\int\limits_{0}^{x} x y^{2}\, dy
+\int\limits_{0}^{x} x y^{2}\ dy
 \frac{x y^{3}}{3}
 - \frac{0^{3} x}{3} + \frac{x x^{3}}{3}
 \frac{x^{4}}{3}
-\int\limits_{0}^{x} x y^{2}\, dy = 0
+\int\limits_{0}^{x} x y^{2}\ dy = 0
 - \frac{0^{3} x}{3} + \frac{x x^{3}}{3} = 0
 \frac{x^{4}}{3} = 0
 \frac{x^{4}}{3}
-\int\limits_{0}^{x} x y^{2}\, dy
-\int\limits_{0}^{x} x y^{2}\, dy
+\int\limits_{0}^{x} x y^{2}\ dy
+\int\limits_{0}^{x} x y^{2}\ dy
 \frac{x y^{3}}{3}
 \frac{x y^{3}}{3}
 \frac{x y^{3}}{3}
+e^{x} \pi + e^{- x} \pi
+\pi e^{- x} text + \pi e^{x} text
+y = b + m x
+y = m x
+\frac{- b + y}{x} = m x
+\frac{- b + y}{x} = m
+- b + y = m x
+y = - b + m x
+y = b + m x
+\frac{- b + y}{x} = m
+- b + y = m x
+y = - b + m x
+y = b + m x
+\operatorname{atan}{\left(\frac{4.57 text m pm \sqrt{- \left(4.57 m text\right)^{2} - 4 \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 \left(7.157 \frac{m}{s}\right)^{2}} \left(0.61 m text + \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 v_{0}^{2}}\right)}}{2 \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 \left(7.157 \frac{m}{s}\right)^{2}}} \right)}
+\operatorname{atan}{\left(\frac{4.57 pm \sqrt{- 4 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}} \left(0.61 m text + \frac{9.8 \cdot 4.57^{2}}{2 v_{0}^{2}}\right) - 4.57^{2}}}{2 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}}} \right)}
+\operatorname{atan}{\left(\frac{4.57 pm \sqrt{- 4 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}} \left(0.61 m text + \frac{9.8 \cdot 4.57^{2}}{2 v_{0}^{2}}\right) - 4.57^{2}}}{2 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}}} \right)}
+\operatorname{atan}{\left(\frac{4.57 pm \sqrt{- 4 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}} \left(0.61 + \frac{9.8 \cdot 4.57^{2}}{2 v_{0}^{2}}\right) - 4.57^{2}}}{2 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}}} \right)}
+\operatorname{atan}{\left(\frac{4.57 pm \sqrt{- 4 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}} \left(0.61 + \frac{9.8 \cdot 4.57^{2}}{2 v_{0}^{2}}\right) - 4.57^{2}}}{2 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}}} \right)}
+\operatorname{atan}{\left(\frac{\sqrt{- 4 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}} \left(0.61 + \frac{9.8 \cdot 4.57^{2}}{2 v_{0}^{2}}\right) - 4.57^{2}} + 4.57}{2 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}}} \right)}
+\operatorname{atan}{\left(\frac{\sqrt{- 4 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}} \left(0.61 + \frac{9.8 \cdot 4.57^{2}}{2 v_{0}^{2}}\right) - 4.57^{2}} + 4.57}{2 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}}} \right)}
+\operatorname{atan}{\left(\frac{\sqrt{- 4 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}} \left(0.61 + \frac{9.8 \cdot 4.57^{2}}{2 v_{0}^{2}}\right) - 4.57^{2}} + 4.57}{2 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}}} \right)}
+\operatorname{atan}{\left(\frac{4.57 + \sqrt{- 4 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}} \left(0.61 + \frac{9.8 \cdot 4.57^{2}}{2}\right) - 4.57^{2}}}{2 \frac{9.8 \cdot 4.57^{2}}{2 \cdot 7.157^{2}}} \right)}
+\operatorname{atan}{\left(\frac{4.57 text m pm \sqrt{- \left(4.57 m text\right)^{2} - 4 \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 \left(7.157 \frac{m}{s}\right)^{2}} \left(0.61 m text + \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 v_{0}^{2}}\right)}}{2 \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 \left(7.157 \frac{m}{s}\right)^{2}}} \right)}
+\operatorname{atan}{\left(\frac{4.57 text m pm \sqrt{- \left(4.57 m text\right)^{2} - 4 \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 \left(7.157 \frac{m}{s}\right)^{2}} \left(0.61 m text + \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 v_{0}^{2}}\right)}}{2 \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 \left(7.157 \frac{m}{s}\right)^{2}}} \right)}
+\operatorname{atan}{\left(\frac{4.57 text m pm \sqrt{- \left(4.57 m text\right)^{2} - 4 \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 \left(7.157 \frac{m}{s}\right)^{2}} \left(0.61 m text + \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 v_{0}^{2}}\right)}}{2 \frac{\left(4.57 m text\right)^{2} \cdot 9.8 text \left(\frac{m}{s}\right)^{2}}{2 \left(7.157 \frac{m}{s}\right)^{2}}} \right)}
+\sqrt{5^{2}}
+\frac{55}{5}
+h l w
+\text{False}
+\text{False}
+\text{False}
+\text{False}
+\sqrt{\left(\frac{1}{182}\right)^{2} + \left(\frac{0.5}{5}\right)^{2}} \cdot 910
+\cos^{2}{\left(x \right)}
+\cos^{2}{\left(x \right)}
+\cos{\left(x \right)}
+x
+1
+1 = x
+1 - \cos^{2}{\left(x \right)} = \sin^{2}{\left(x \right)}
+1 - \cos^{2}{\left(x \right)} = \sin^{2}{\left(x 2 \right)}
+1 - \cos^{2}{\left(x \right)} = \sin^{2}{\left(x \right)}
+\cos{\left(x \right)}
+\int \frac{\sqrt{x^{2} - 49}}{x}\, dx
+\sqrt{x^{2} - 49} + 49 = x^{2}
+7 \tan{\left(\theta \right)} = \sqrt{x^{2} - 49}
+\operatorname{acos}{\left(\frac{7}{x} \right)}
+\theta = \operatorname{acos}{\left(\frac{7}{x} \right)}
+\theta = \operatorname{acos}{\left(\frac{7}{x} \right)}
+x = 7 \sec{\left(\theta \right)}
+\int \frac{7 \tan{\left(\theta \right)}}{7 \sec{\left(\theta \right)}} 7 \tan{\left(\theta \right)} \sec{\left(\theta \right)}\, d\theta
+\int 7 \tan^{2}{\left(\theta \right)}\, d\theta
+\int 7 \left(\sec^{2}{\left(\theta \right)} - 1\right)\, d\theta
+7 \left(- \theta + \tan{\left(\theta \right)}\right)
+x = 7 \sec{\left(\theta \right)}
+7 \left(\tan{\left(\operatorname{acos}{\left(\frac{7}{x} \right)} \right)} - \operatorname{acos}{\left(\frac{7}{x} \right)}\right)
+7 \left(\tan{\left(\operatorname{acos}{\left(\frac{7}{x} \right)} \right)} - \operatorname{acos}{\left(\frac{7}{x} \right)}\right)

@@ -2,11 +2,12 @@ from os import error
 from typing import List
 from market import app
 from flask import render_template, redirect, url_for, flash, get_flashed_messages, Response, request, Flask, send_from_directory
+from werkzeug.utils import secure_filename
 from market.models import User#, Item#, Currency
 from market.forms import RegisterForm, LoginForm
 from market import db
 #from matplotlib import pyplot as plt
-import sys
+import sys,os
 
 #from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
@@ -14,11 +15,17 @@ from sympy.parsing.latex import parse_latex
 import sympy
 from market import sympytypehandler
 
+ALLOWED_EXTENSIONS = {'csv'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
 
 #send_from_directory checks the file path so they can't put ../../ into the path to snoop in your files
 @app.route("/static/<path:path>")
 def static_dir(path):
-    print("sending shit", app.root_path, file=sys.stderr)
     return send_from_directory("static", path)
 
 original = None
@@ -38,7 +45,7 @@ def checkAnswer():
 
 
     try:
-        equation = parse_latex(latex)#.simplify()#.doit()
+        equation = parse_latex(latex)
     except Exception as e:
         return "parsing error", e
 
@@ -73,10 +80,29 @@ def checkAnswer():
             print(equation, "is incorrect", file=sys.stderr)
     return ','.join([str(i) for i in [correct, equation]])
 
-@app.route('/')
-@app.route('/home/')
+@app.route('/', methods=["GET","POST"])
+@app.route('/home/', methods=["GET","POST"])
 def home_page():
-    return render_template("math.html")#('home.html')
+    equations = []
+    if request.method == 'POST':
+        # check if the post request has the file part
+        if 'file' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
+        file = request.files['file']
+        # if user does not select file, browser also
+        # submit an empty part without filename
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            equations = file.read().decode('utf-8')
+            equations = equations.split('\n')
+            # if you want to save the file #file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            #TODO: check equations before you send it back
+    return render_template("math.html", equations=equations)
 
 #saved_eq = ["y=mx+b", "a^2+b^2=c^2", '"e=mc^2"']
 
