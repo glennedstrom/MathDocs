@@ -1,7 +1,7 @@
 from market import app
 
 if __name__ == '__main__':
-    app.run(debug=True, host='localhost', port=1194)
+    app.run(debug=True, host='0.0.0.0', port=8081)#'173.219.167.170', port=8081)
 
 """
 TODO:

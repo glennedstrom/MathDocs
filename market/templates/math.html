@@ -93,6 +93,9 @@
             //do stuff and style css here from the response if it was right or wrong
         })
     }
+    function jsChecker(latex){
+        console.log(latex)
+    }
 </script>
 <script>
     var MQ = MathQuill.getInterface(2);
@@ -119,12 +122,16 @@
                 addMathBox(endpoint.get('latex'))
             })
         }
-        if ($('.equation').length === 0) {
+        if ($('.equation').length === 0) {//Loaded Nothing so add a blank one
             addMathBox()
         }
     }
 
     var correct = null
+
+    function updateBox(checker,...args){ // the function you want to use to check the math then the arguments for it
+        return checker(...args);//starting to realize how useless this is
+    }
 
     //TODO: add x buttons in each row
     //Parameters are for initializing only, they are outdated in the functions
@@ -161,6 +168,7 @@
                     if (!span.classList.contains('unsolved')) {
                         span.classList.add('unsolved')
                     }
+                    // TODO test solve if unedited for a second if using javascript instead of sympy
                 },
                 enter: function() {
                     //figuring out how to make the cursor move to the same position in the new text would be great
@@ -170,7 +178,9 @@
                     //console.log(cursor.innerHTML)
                     MQ($(span).next('.equation')[0]).focus()
 
-                    sympy(answerMathField) //asynchronous with ajax, returns nothing and updates css
+                    
+                    //updateBox(sympy,answerMathField)//asynchronous with ajax, returns nothing and updates css
+                    updateBox(jsChecker,answerMathField.latex())
                 },
                 deleteOutOf: function(direction, mathField) {
                     //delete text boxes with backspace
@@ -208,6 +218,7 @@
                 }// TODO: fix upOutOf and downOutOf to go straight up and not just to your previous cursor location
             }
         });
+        
 
         return answerMathField
     }
