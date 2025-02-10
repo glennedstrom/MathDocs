@@ -140,3 +140,23 @@ x = 7 \sec{\left(\theta \right)}
 x = 7 \sec{\left(\theta \right)}
 7 \left(\tan{\left(\operatorname{acos}{\left(\frac{7}{x} \right)} \right)} - \operatorname{acos}{\left(\frac{7}{x} \right)}\right)
 7 \left(\tan{\left(\operatorname{acos}{\left(\frac{7}{x} \right)} \right)} - \operatorname{acos}{\left(\frac{7}{x} \right)}\right)
+y = b + m x
+y = m x
+y = b + m x
+y = m x
+y = b + m x
+- b + y = m x
+- b + y = m x
+- b + y = m x
+\sin{\left(x \right)}
+\sin{\left(x \right)}
+y = b + m x
+y = b 2 + m x
+y = b 2 + m x
+y = b + m x
+y = b 2 + m x
+\int\limits_{0}^{5} x^{2}\, dx
+y_{0} = b + m x_{0}
+- b + y_{0} = m x_{0}
+\frac{- b + y_{0}}{x_{0}} = m
+\frac{- b + y_{0}}{x} = m

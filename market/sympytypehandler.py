@@ -34,8 +34,9 @@ def main(equations): #just for testing
         solve(eq)
 
 def csv_append(latex):
-    with open('market/example_equations.csv', 'a') as f:
-        f.write(str(latex)+'\n')
+    pass
+    #with open('market/example_equations.csv', 'a') as f:
+        #f.write(str(latex)+'\n')
 
 
 if __name__ == "__main__":

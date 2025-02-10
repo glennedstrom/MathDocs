@@ -16,6 +16,7 @@
 
 
 
+    <br>
 <!-- Mathquill javascript -->
 <script>
     /**
@@ -254,9 +255,9 @@
 
 
 <!-- Main HTML -->
-<p>
+<!--<p>
     <span id="problem">ax^2 + bx + c = 0</span>
-</p>
+</p>-->
 
 <div id="settings" class="container">
 </div>
@@ -264,10 +265,12 @@
 <div id="u-sub">
 </div>
 
+<!--
 <form method=post enctype=multipart/form-data>
   <input type=file name=file>
   <input type=submit value=Upload>
 </form>
+-->
 
 <div class="container">
     <button class="btn btn-danger" onclick="clearAll()">Clear all</button>
@@ -287,17 +290,16 @@
         </div>
     </div>
 </div>
-<h3>Dev Notes</h3>
+<!-- <h3>Dev Notes</h3>
 <ol>
     <li>adding u-sub and other variables is probably easy, just add them to the url query as key-value pairs then figure it out from there with .subs() or some other stuff</li>
     <li>transform sympy method is used for u-substitution</li>
     <li>store all of the correct equations verified by sympy in a dictionary with the key being the original equation and the values being a list of all the rest. (not sure about the structure, but store it somehow with all of the items inside)</li>
     <li>create settings panel and assignments 'filesystem' and update the #download-area to have titles/and assingment info</li>
-</ol>
+</ol>-->
 <div id='output'>
 
 </div>
-
 
 <script>
     var problemSpan = document.getElementById('problem');
@@ -351,6 +353,122 @@
         flex-direction: column;
     }
 </style>
+
+
+
+
+<!-- Help Section -->
+    <div id="instructions-container" class="container mt-4">
+    <div class="card bg-dark text-light">
+        <div class="card-header d-flex justify-content-between align-items-center bg-dark text-light">
+            <h4 class="mb-0">Instructions</h4>
+            <button type="button" class="custom-close-btn" aria-label="Close" onclick="closeInstructions()">×</button>
+        </div>
+        <div class="card-body bg-dark text-light">
+            <h5>Basic Usage:</h5>
+            <ul>
+                <li>Type mathematical equations using the interactive editor</li>
+                <li>Press Enter to copy your equation to a new line</li>
+                <li>Edit your equation in-place</li>
+                <li>Every time you press Enter, it checks your work by seeing if it is equivalent to the original (top) equation</li>
+                <li>Use backspace when empty to remove a line</li>
+                <li>Equations are automatically saved in your browser</li>
+            </ul>
+
+            <h5>Color Coding:</h5>
+            <ul>
+                <li>Blue border: Not tested yet; press enter to verify this solution and go to a new line</li>
+                <li>None/Grey border: Verified there are no mistakes</li>
+                <li>Red: A mistake was found: This equation is not equivalent to the original equation</li>
+            </ul>
+
+            <h5>Keyboard Shortcuts:</h5>
+            <ul>
+                <li>↑/↓ arrows: Navigate between equations</li>
+                <li>Enter: Copy Equation to a new line and check for errors</li>
+                <li>Backspace: Delete empty equation line</li>
+            </ul>
+
+            <h5>Special Commands:</h5>
+                Similar to Desmos<br>
+            <ul>
+                <li>Use sqrt for square root</li>
+                <li>Type pi for π symbol</li>
+                <li>Use ^ for exponents</li>
+                <li>Use _ for subscripts</li>
+                <li>Use / for fractions</li>
+                <li>Type theta for θ symbol</li>
+            </ul>
+
+            <h5>Features:</h5>
+            <ul>
+                <li>Error Detection: Every time you go to a new line, it checks if you have made any mistakes so far</li>
+                <li>Clear All: Removes all equations and starts fresh</li>
+                <li>Download: Saves your work as an image</li>
+                <li>Auto-saving: Your work is automatically saved in the browser</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<style>
+#instructions-container {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.custom-close-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
+    transition: opacity 0.2s;
+}
+
+.custom-close-btn:hover {
+    opacity: 0.7;
+}
+</style>
+
+<script>
+function closeInstructions() {
+    const container = document.getElementById('instructions-container');
+    container.style.animation = 'fadeOut 0.3s ease-out forwards';
+    
+    setTimeout(() => {
+        container.remove();
+    }, 300);
+}
+
+// Add fadeOut animation
+const style = document.createElement('style');
+style.textContent = `
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+}`;
+document.head.appendChild(style);
+</script>
 {% endblock %}
 
 
