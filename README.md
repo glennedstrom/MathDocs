@@ -31,7 +31,7 @@ The generated `dist/` directory is a static PWA and can be deployed to Vercel, C
 
 The checker is implemented in `src/checker/checker.ts` with Cortex Compute Engine and runs in a dedicated Web Worker.
 
-It currently supports:
+It currently supports (but untested):
 
 - canonical and simplified expression identities;
 - polynomial and common trigonometric identities;
