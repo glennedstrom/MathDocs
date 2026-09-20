@@ -1,48 +1,57 @@
 # MathDocs
 
-## Table of contents
- Description
- 
- Installation
- 
- Other_notes
- 
- TODO
+MathDocs is an offline-first mathematical workpad. It checks each line against the original expression entirely in the browser, saves work locally, and reports one of three honest outcomes:
 
+- **Equivalent** — symbolic rules prove the step preserves the original.
+- **Different** — an exact calculation or stable numerical counterexample disproves it.
+- **Uncertain** — the engine can prove neither result.
 
-# Description
-This site is a site to allow you to work through math problems and show your work easily, and it will auto-check you every step of the way to let you know if you messed up.
+No equation is sent to a server.
 
-# Installation
-## virtual environment reccomended because there is a lot of packages
-## cd to the main directory MathDocs first
+## Development
 
-1. pip install virtualenv
+Requires Node.js 22.3 or newer.
 
-2. virtualenv .
+```bash
+npm install
+npm run dev
+```
 
-##may vary depending on OS
-3. source bin/activate
+Production and verification commands:
 
-##install all python dependencies
-4. pip install -r requirements.txt
+```bash
+npm test
+npm run build
+npm run preview
+```
 
-5. python3 run.py
+The generated `dist/` directory is a static PWA and can be deployed to Vercel, Cloudflare Pages, GitHub Pages, or any other HTTPS static host.
 
-- the link to the site will be in the output of the command or go to http://localhost:1194
-- if you want to share it locally over your LAN, then open run.py and change the host='localhost' to host='0.0.0.0' then get the url from flask's output
-- the url will be your local IP. this changes often so I believe it's generally ok to share it.
+## Checker behavior
 
+The checker is implemented in `src/checker/checker.ts` with Cortex Compute Engine and runs in a dedicated Web Worker.
 
-- to host it publicly, you will need to port forward your local ip with the port 1194 in your router's settings, then you will be able to access your site from any computer if you go to the url which will be your http://publicIP:1194
+It currently supports:
 
+- canonical and simplified expression identities;
+- polynomial and common trigonometric identities;
+- equations whose residuals are identical or differ by a nonzero constant;
+- symbolic derivatives;
+- common definite integrals;
+- indefinite-integral answers verified by differentiation;
+- explicit real-variable assumptions such as `x>0`;
+- numerical counterexamples when symbolic simplification is inconclusive.
 
-# Other_notes
-polyfill is to make your website more accessible to older browsers, talked about in the last video on the playlist above (FCC jQuery series)
+It intentionally returns **Uncertain** for unsupported solution-set comparisons, domain changes, general inequalities, arbitrary substitution steps, and branch-sensitive identities. Matching random samples never count as proof.
 
+## Local data and offline use
 
-# TODO - 
-append notes here with `echo 'note' >> README.md`
+Documents are stored in IndexedDB. On first use, the app imports the old `localStorage.equations` format if it exists. The service worker precaches the UI, fonts, and checker worker after the first successful visit.
 
-add unit tests to make it obvious if a change you made broke anything: https://www.freecodecamp.org/news/devops-engineering-course-for-beginners/
-measure code coverage in the tests to see what you didn't test
+CSV import reads the first field of each row. Documents can be exported as CSV or PNG.
+
+The files under `market/` that remain in the repository are historical equation corpora and image assets; the Python/Flask application has been removed.
+
+## Testing
+
+The test suite covers exact identities, incorrect transformations, denominator-domain preservation, equation normalization, derivatives, antiderivatives, and malformed input. Add every checker regression to `src/checker/checker.test.ts` before changing normalization rules.
