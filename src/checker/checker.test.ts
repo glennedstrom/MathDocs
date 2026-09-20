@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { checkEquivalence } from "./checker";
+import { checkEquivalence, validateAssumption } from "./checker";
+
+describe("validateAssumption", () => {
+  it("accepts a rendered relation", () => {
+    expect(validateAssumption("x>0").valid).toBe(true);
+    expect(validateAssumption("a\\ne0").valid).toBe(true);
+  });
+
+  it("rejects malformed notation and standalone expressions", () => {
+    expect(validateAssumption("x>").valid).toBe(false);
+    expect(validateAssumption("x+1").valid).toBe(false);
+  });
+});
 
 describe("checkEquivalence", () => {
   it("proves expanded polynomial identities", () => {
@@ -33,6 +45,23 @@ describe("checkEquivalence", () => {
       assumptions: ["x!=0"],
     });
     expect(checked.verdict, JSON.stringify(checked)).toBe("equivalent");
+  });
+
+  it("distinguishes an equivalent identity that narrows the domain", () => {
+    const checked = checkEquivalence(
+      "\\tan x=\\frac{\\sin x}{\\cos x}",
+      "\\frac{\\tan x}{\\sin x}=\\frac{1}{\\cos x}",
+    );
+    expect(checked.verdict, JSON.stringify(checked)).toBe("equivalent-domain-change");
+  });
+
+  it("rejects a false identity even when its domain also changes", () => {
+    const checked = checkEquivalence(
+      "\\tan x=\\frac{\\sin x}{\\cos x}",
+      "\\frac{\\tan x}{\\sin x}=\\frac{x}{\\cos x}",
+    );
+    expect(checked.verdict, JSON.stringify(checked)).toBe("not-equivalent");
+    expect(checked.counterexample).toBeDefined();
   });
 
   it("rejects equations that lose a root", () => {
@@ -132,11 +161,11 @@ describe("checkEquivalence", () => {
   });
 
   it("retains removable denominator restrictions", () => {
-    expect(checkEquivalence("\\frac{x^2-1}{x-1}", "x+1").verdict).toBe("unknown");
+    expect(checkEquivalence("\\frac{x^2-1}{x-1}", "x+1").verdict).toBe("equivalent-domain-change");
   });
 
   it("does not erase the domain of x divided by itself", () => {
-    expect(checkEquivalence("x/x", "1").verdict).toBe("unknown");
+    expect(checkEquivalence("x/x", "1").verdict).toBe("equivalent-domain-change");
   });
 
   it("reports invalid notation without throwing", () => {

@@ -4,7 +4,7 @@ import {
   type Expression,
   type ExpressionInput,
 } from "@cortex-js/compute-engine";
-import type { CheckContext, CheckResult } from "./types";
+import type { AssumptionValidationResult, CheckContext, CheckResult } from "./types";
 
 type MathJson = string | number | readonly MathJson[] | Record<string, unknown>;
 
@@ -118,6 +118,57 @@ function invalidNotationMessage(expression: Expression, location: "original line
   return `The mathematical notation on ${location} could not be parsed.`;
 }
 
+export function validateAssumption(latex: string): AssumptionValidationResult {
+  const normalized = normalizeLatex(latex);
+  if (!normalized) return { valid: false, message: "Enter an assumption first.", latex: normalized };
+
+  try {
+    const discoveryEngine = new ComputeEngine();
+    const discovered = discoveryEngine.parse(normalized, { form: "raw" });
+    if (!discovered.isValid) {
+      return {
+        valid: false,
+        message: invalidNotationMessage(discovered, "this line"),
+        latex: normalized,
+      };
+    }
+
+    const engine = new ComputeEngine();
+    for (const symbol of discovered.unknowns) engine.declare(symbol, "real");
+    const predicate = engine.parse(normalized);
+    const predicateOperators = new Set([
+      "Equal",
+      "NotEqual",
+      "Less",
+      "LessEqual",
+      "Greater",
+      "GreaterEqual",
+    ]);
+    if (!predicateOperators.has(predicate.operator)) {
+      return {
+        valid: false,
+        message: "An assumption must be a relation such as x>0 or a≠0.",
+        latex: normalized,
+      };
+    }
+
+    const status = engine.assume(normalized);
+    if (status === "contradiction") {
+      return { valid: false, message: "This assumption is contradictory.", latex: normalized };
+    }
+    if (status === "not-a-predicate") {
+      return { valid: false, message: "This is not a valid mathematical assumption.", latex: normalized };
+    }
+    return { valid: true, message: "Assumption added.", latex: normalized };
+  } catch (error) {
+    return {
+      valid: false,
+      message: error instanceof Error ? error.message : "The assumption could not be validated.",
+      latex: normalized,
+    };
+  }
+}
+
 function result(
   verdict: CheckResult["verdict"],
   method: CheckResult["method"],
@@ -204,6 +255,24 @@ function isZero(expression: Expression): boolean {
   return expression.is(0) || expression.isSame(0) || (expression.isConstant && expression.re === 0 && expression.im === 0);
 }
 
+function expandTrigQuotients(json: MathJson): MathJson {
+  if (!isArrayExpression(json)) return json;
+  const operands = json.slice(1).map((operand) => expandTrigQuotients(operand));
+  if (json[0] === "Tan" && operands[0] !== undefined) {
+    return ["Divide", ["Sin", operands[0]], ["Cos", operands[0]]];
+  }
+  if (json[0] === "Cot" && operands[0] !== undefined) {
+    return ["Divide", ["Cos", operands[0]], ["Sin", operands[0]]];
+  }
+  if (json[0] === "Sec" && operands[0] !== undefined) {
+    return ["Divide", 1, ["Cos", operands[0]]];
+  }
+  if (json[0] === "Csc" && operands[0] !== undefined) {
+    return ["Divide", 1, ["Sin", operands[0]]];
+  }
+  return [json[0], ...operands];
+}
+
 function expressionsProvenEqual(
   engine: ComputeEngine,
   left: Expression,
@@ -217,6 +286,9 @@ function expressionsProvenEqual(
   const delta = difference(engine, left, right);
   if (isZero(delta.simplify())) return true;
   if (isZero(engine.box(["Expand", delta]).evaluate().simplify())) return true;
+  const expandedLeft = engine.box(expandTrigQuotients(left.json as MathJson) as ExpressionInput);
+  const expandedRight = engine.box(expandTrigQuotients(right.json as MathJson) as ExpressionInput);
+  if (isZero(difference(engine, expandedLeft, expandedRight).simplify())) return true;
   return left.isEqual(right) === true;
 }
 
@@ -226,18 +298,29 @@ function exactExpressionCheck(
   right: Expression,
   domainsAreEqual: boolean,
 ): CheckResult | undefined {
-  if (domainsAreEqual && (left.isSame(right) || left.canonical.isSame(right.canonical))) {
-    return result("equivalent", "canonical", "The expressions have the same canonical form.");
+  if (left.isSame(right) || left.canonical.isSame(right.canonical)) {
+    return domainsAreEqual
+      ? result("equivalent", "canonical", "The expressions have the same canonical form.")
+      : result(
+          "equivalent-domain-change",
+          "canonical",
+          "The expressions are algebraically equivalent, but this step changes where they are defined.",
+        );
   }
 
   const evaluatedLeft = left.evaluate();
   const evaluatedRight = right.evaluate();
   if (
-    domainsAreEqual &&
-    (expressionsProvenEqual(engine, left, right) ||
-      expressionsProvenEqual(engine, evaluatedLeft, evaluatedRight))
+    expressionsProvenEqual(engine, left, right) ||
+    expressionsProvenEqual(engine, evaluatedLeft, evaluatedRight)
   ) {
-    return result("equivalent", "symbolic", "Symbolic simplification proves equivalence.");
+    return domainsAreEqual
+      ? result("equivalent", "symbolic", "Symbolic simplification proves equivalence.")
+      : result(
+          "equivalent-domain-change",
+          "symbolic",
+          "Symbolic simplification matches, but this step changes where the expressions are defined.",
+        );
   }
 
   const simplifiedDelta = difference(engine, evaluatedLeft, evaluatedRight).simplify();
@@ -268,29 +351,37 @@ function equationCheck(
   const right = equationResidual(engine, candidate);
   if (!left || !right) return undefined;
 
-  if (domainsAreEqual && expressionsProvenEqual(engine, left, right)) {
+  if (expressionsProvenEqual(engine, left, right)) {
+    return domainsAreEqual
+      ? result(
+          "equivalent",
+          "equation-normalization",
+          "Both equations reduce to the same zero residual.",
+        )
+      : result(
+          "equivalent-domain-change",
+          "equation-normalization",
+          "Both equations reduce to the same identity, but this step changes the permitted domain.",
+        );
+  }
+
+  const ratio = engine.box(["Divide", left, right]).simplify();
+  const ratioIsNonzeroConstant =
+    ratio.unknowns.length === 0 && Number.isFinite(ratio.re) && Math.abs(ratio.re) > NUMERIC_TOLERANCE;
+  const ratioIsAssumedNonzero = engine.ask(engine.box(["NotEqual", ratio, 0])).length > 0;
+  if (ratioIsNonzeroConstant || ratioIsAssumedNonzero) {
     return result(
-      "equivalent",
+      domainsAreEqual ? "equivalent" : "equivalent-domain-change",
       "equation-normalization",
-      "Both equations reduce to the same zero residual.",
+      domainsAreEqual
+        ? ratioIsNonzeroConstant
+          ? "The equation residuals differ only by a nonzero constant factor."
+          : "Under the stated assumptions, the equation residuals differ only by a nonzero factor."
+        : "The equations are algebraically equivalent, but this step changes the permitted domain.",
     );
   }
 
   if (domainsAreEqual) {
-    const ratio = engine.box(["Divide", left, right]).simplify();
-    const ratioIsNonzeroConstant =
-      ratio.unknowns.length === 0 && Number.isFinite(ratio.re) && Math.abs(ratio.re) > NUMERIC_TOLERANCE;
-    const ratioIsAssumedNonzero = engine.ask(engine.box(["NotEqual", ratio, 0])).length > 0;
-    if (ratioIsNonzeroConstant || ratioIsAssumedNonzero) {
-      return result(
-        "equivalent",
-        "equation-normalization",
-        ratioIsNonzeroConstant
-          ? "The equation residuals differ only by a nonzero constant factor."
-          : "Under the stated assumptions, the equation residuals differ only by a nonzero factor.",
-      );
-    }
-
     const possibleFactors = [
       ...collectDenominators(left.json as MathJson),
       ...collectDenominators(right.json as MathJson),
@@ -328,6 +419,30 @@ function equationCounterexample(
   assumptions: string[],
 ): CheckResult | undefined {
   const variables = [...new Set([...left.unknowns, ...right.unknowns])].sort();
+
+  for (let sampleIndex = 0; sampleIndex < SAMPLE_VALUES.length; sampleIndex += 1) {
+    const scope: Record<string, number> = {};
+    variables.forEach((variable, variableIndex) => {
+      scope[variable] = SAMPLE_VALUES[(sampleIndex + variableIndex * 3) % SAMPLE_VALUES.length];
+    });
+    if (!assumptionsHold(engine, assumptions, scope)) continue;
+    const leftValue = left.subs(scope).N();
+    const rightValue = right.subs(scope).N();
+    if (![leftValue.re, leftValue.im, rightValue.re, rightValue.im].every(Number.isFinite)) continue;
+    const leftMagnitude = Math.hypot(leftValue.re, leftValue.im);
+    const rightMagnitude = Math.hypot(rightValue.re, rightValue.im);
+    const scale = Math.max(1, leftMagnitude, rightMagnitude);
+    const leftIsZero = leftMagnitude <= NUMERIC_TOLERANCE * scale;
+    const rightIsZero = rightMagnitude <= NUMERIC_TOLERANCE * scale;
+    if (leftIsZero !== rightIsZero) {
+      return result(
+        "not-equivalent",
+        "numeric-counterexample",
+        "A valid set of values satisfies one equation but not the other.",
+        scope,
+      );
+    }
+  }
 
   const witness = (source: Expression, target: Expression): Record<string, number> | undefined => {
     for (const solvedVariable of variables) {

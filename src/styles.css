@@ -9,6 +9,7 @@
   --nav-light: #405d73;
   --accent: #17b8cf;
   --green: #53b96a;
+  --domain: #478faf;
   --red: #ff6b61;
   --amber: #e9a52b;
   --line: #d9dee2;
@@ -137,6 +138,7 @@ h1 {
 .legend span { display: flex; align-items: center; gap: 7px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: #9aa4aa; }
 .dot.equivalent { background: var(--green); }
+.dot.equivalent-domain-change { background: var(--domain); }
 .dot.not-equivalent { background: var(--red); }
 .dot.unknown { background: var(--amber); }
 
@@ -151,8 +153,8 @@ h1 {
   background: var(--paper);
 }
 
-.toolbar label { display: grid; gap: 6px; }
-.toolbar label > span {
+.toolbar label, .assumption-field { display: grid; gap: 6px; }
+.toolbar label > span, .field-label {
   color: #77848d;
   font-size: .7rem;
   font-weight: 600;
@@ -173,6 +175,65 @@ h1 {
 }
 
 .toolbar input:focus { border-color: var(--accent); }
+
+.assumption-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.assumption-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 31px;
+  border: 1px solid #cbd2d7;
+  border-radius: 2px;
+  background: #f7f8f8;
+}
+
+math-field.saved-assumption {
+  min-width: 0;
+  padding: 3px 5px 3px 8px;
+  border: 0;
+  background: transparent;
+  font-size: .9rem;
+}
+
+math-field.saved-assumption::part(menu-toggle),
+math-field.saved-assumption::part(virtual-keyboard-toggle),
+math-field.capture-assumption::part(menu-toggle),
+math-field.capture-assumption::part(virtual-keyboard-toggle) {
+  display: none;
+}
+
+.remove-assumption {
+  width: 27px;
+  align-self: stretch;
+  color: #8b979f;
+  border: 0;
+  border-left: 1px solid #d8dde0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.remove-assumption:hover { color: var(--red); background: #fff1f0; }
+
+math-field.assumption-editor {
+  width: 100%;
+  min-height: 38px;
+  padding: 5px 9px;
+  color: #47545e;
+  border: 1px solid #ccd3d8;
+  border-radius: 2px;
+  background: #fff;
+  font-size: 1rem;
+  --caret-color: var(--accent);
+  --selection-background-color: rgba(23, 184, 207, .18);
+}
+
+math-field.assumption-editor:focus-within { border-color: var(--accent); }
+.assumption-error { margin: 0; color: var(--red); font-size: .7rem; }
+.assumption-error.validating { color: var(--muted); }
 .toolbar-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 
 .button {
@@ -218,8 +279,23 @@ h1 {
 .sheet-heading strong { font-size: 1rem; font-weight: 600; }
 
 .capture-assumptions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
   color: #6e7d86;
   font-size: .8rem;
+}
+.capture-assumptions[hidden] { display: none; }
+
+math-field.capture-assumption {
+  min-width: 0;
+  padding: 1px 5px;
+  color: inherit;
+  border: 0;
+  background: transparent;
+  font-size: .85rem;
 }
 
 .equation-list { display: grid; }
@@ -257,6 +333,7 @@ math-field.math-input:focus-within { border-color: var(--accent); }
 .result { min-width: 0; }
 .result p { margin: 6px 0 0; color: #8a959c; font-size: .74rem; line-height: 1.35; }
 .result.equivalent p { color: #579665; }
+.result.equivalent-domain-change p { color: #477f99; }
 .result.not-equivalent p { color: #cf5a52; }
 .result.unknown p { color: #a9781f; }
 
@@ -288,6 +365,7 @@ math-field.math-input:focus-within { border-color: var(--accent); }
 
 .status.reference { background: var(--accent); }
 .status.equivalent { background: var(--green); }
+.status.equivalent-domain-change { background: var(--domain); }
 .status.not-equivalent { background: var(--red); }
 .status.unknown { background: var(--amber); }
 .status.idle, .status.checking { color: #65727a; background: #e7eaec; }
@@ -357,8 +435,10 @@ html[data-theme="dark"] .help {
   background: #202a32;
 }
 
-html[data-theme="dark"] .toolbar label > span { color: #9aa7af; }
+html[data-theme="dark"] .toolbar label > span,
+html[data-theme="dark"] .field-label { color: #9aa7af; }
 html[data-theme="dark"] .toolbar input,
+html[data-theme="dark"] math-field.assumption-editor,
 html[data-theme="dark"] math-field.math-input {
   color: #e3e8eb;
   border-color: #465660;
@@ -366,6 +446,10 @@ html[data-theme="dark"] math-field.math-input {
 }
 
 html[data-theme="dark"] .toolbar input::placeholder { color: #65747e; }
+html[data-theme="dark"] .assumption-item { border-color: #465660; background: #29353e; }
+html[data-theme="dark"] math-field.saved-assumption { color: #d7dfe4; }
+html[data-theme="dark"] .remove-assumption { color: #85939c; border-left-color: #465660; }
+html[data-theme="dark"] .remove-assumption:hover { color: #ff8179; background: #35282a; }
 html[data-theme="dark"] .button {
   color: #cbd4d9;
   border-color: #475660;
@@ -392,6 +476,7 @@ html[data-theme="dark"] .equation-row:focus-within { background: #232e36; }
 html[data-theme="dark"] .sequence { color: #6e7c85; }
 html[data-theme="dark"] .result p { color: #89969e; }
 html[data-theme="dark"] .result.equivalent p { color: #7bc58b; }
+html[data-theme="dark"] .result.equivalent-domain-change p { color: #76b5d1; }
 html[data-theme="dark"] .result.not-equivalent p { color: #ee817a; }
 html[data-theme="dark"] .result.unknown p { color: #d7a443; }
 html[data-theme="dark"] .parse-details { color: #8e9ba4; }

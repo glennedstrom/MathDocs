@@ -1,4 +1,4 @@
-export type Verdict = "equivalent" | "not-equivalent" | "unknown";
+export type Verdict = "equivalent" | "equivalent-domain-change" | "not-equivalent" | "unknown";
 
 export type CheckMethod =
   | "reference"
@@ -25,6 +25,7 @@ export interface CheckResult {
 }
 
 export interface CheckRequest {
+  kind: "check";
   id: number;
   referenceLatex: string;
   candidateLatex: string;
@@ -32,6 +33,28 @@ export interface CheckRequest {
 }
 
 export interface CheckResponse {
+  kind: "check";
   id: number;
   result: CheckResult;
 }
+
+export interface AssumptionValidationResult {
+  valid: boolean;
+  message: string;
+  latex: string;
+}
+
+export interface AssumptionValidationRequest {
+  kind: "validate-assumption";
+  id: number;
+  latex: string;
+}
+
+export interface AssumptionValidationResponse {
+  kind: "validate-assumption";
+  id: number;
+  result: AssumptionValidationResult;
+}
+
+export type WorkerRequest = CheckRequest | AssumptionValidationRequest;
+export type WorkerResponse = CheckResponse | AssumptionValidationResponse;

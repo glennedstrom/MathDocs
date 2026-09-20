@@ -2,7 +2,7 @@ import { MathfieldElement } from "mathlive";
 import "mathlive/fonts.css";
 import html2canvas from "html2canvas";
 import { registerSW } from "virtual:pwa-register";
-import { checkInWorker } from "./checker/client";
+import { checkInWorker, validateAssumptionInWorker } from "./checker/client";
 import type { CheckResult } from "./checker/types";
 import { parseEquationCsv, serializeEquationCsv } from "./csv";
 import {
@@ -50,6 +50,7 @@ app.innerHTML = `
       </div>
       <div class="legend" aria-label="Result legend">
         <span><i class="dot equivalent"></i> Equivalent</span>
+        <span><i class="dot equivalent-domain-change"></i> Equivalent, domain changed</span>
         <span><i class="dot not-equivalent"></i> Different</span>
         <span><i class="dot unknown"></i> Uncertain</span>
       </div>
@@ -60,10 +61,12 @@ app.innerHTML = `
         <span>Document</span>
         <input id="document-title" autocomplete="off" />
       </label>
-      <label class="assumption-field">
-        <span>Assumptions <small>(comma separated)</small></span>
-        <input id="assumptions" placeholder="x>0, a\\ne0" autocomplete="off" />
-      </label>
+      <div class="assumption-field">
+        <span class="field-label">Assumptions</span>
+        <div id="assumption-list" class="assumption-list" aria-label="Saved assumptions"></div>
+        <div id="assumption-editor-host"></div>
+        <p id="assumption-error" class="assumption-error" role="alert" hidden></p>
+      </div>
       <div class="toolbar-actions">
         <button type="button" class="button subtle" id="import-button">Import CSV</button>
         <button type="button" class="button subtle" id="export-csv-button">Export CSV</button>
@@ -77,7 +80,7 @@ app.innerHTML = `
     <section class="sheet" id="capture-area" aria-label="Math work">
       <div class="sheet-heading">
         <strong id="capture-title"></strong>
-        <span id="capture-assumptions" class="capture-assumptions" hidden></span>
+        <div id="capture-assumptions" class="capture-assumptions" hidden></div>
       </div>
       <div id="equation-list" class="equation-list"></div>
     </section>
@@ -103,20 +106,40 @@ function requiredElement<T extends Element>(selector: string): T {
 
 const equationList = requiredElement<HTMLDivElement>("#equation-list");
 const titleInput = requiredElement<HTMLInputElement>("#document-title");
-const assumptionsInput = requiredElement<HTMLInputElement>("#assumptions");
+const assumptionList = requiredElement<HTMLElement>("#assumption-list");
+const assumptionEditorHost = requiredElement<HTMLElement>("#assumption-editor-host");
+const assumptionError = requiredElement<HTMLElement>("#assumption-error");
 const captureTitle = requiredElement<HTMLElement>("#capture-title");
 const captureAssumptions = requiredElement<HTMLElement>("#capture-assumptions");
 const saveStatus = requiredElement<HTMLElement>("#save-status");
 const fileInput = requiredElement<HTMLInputElement>("#file-input");
 
 titleInput.value = documentState.title;
-assumptionsInput.value = documentState.assumptions;
 captureTitle.textContent = documentState.title;
 
+const assumptionEditor = new MathfieldElement();
+assumptionEditor.className = "assumption-editor";
+assumptionEditor.setAttribute("aria-label", "New assumption");
+assumptionEditor.setAttribute("placeholder", "\\text{Type an assumption, then press Enter}");
+assumptionEditor.smartMode = true;
+assumptionEditor.mathVirtualKeyboardPolicy = "auto";
+assumptionEditorHost.append(assumptionEditor);
+
 function updateCaptureAssumptions(): void {
-  const value = documentState.assumptions.trim();
-  captureAssumptions.hidden = !value;
-  captureAssumptions.textContent = value ? `Assumptions: ${value}` : "";
+  const values = assumptions();
+  captureAssumptions.hidden = values.length === 0;
+  captureAssumptions.replaceChildren();
+  if (values.length === 0) return;
+  const label = document.createElement("span");
+  label.textContent = "Assumptions:";
+  captureAssumptions.append(label);
+  for (const latex of values) {
+    const field = new MathfieldElement();
+    field.value = latex;
+    field.readOnly = true;
+    field.className = "capture-assumption";
+    captureAssumptions.append(field);
+  }
 }
 
 updateCaptureAssumptions();
@@ -127,6 +150,98 @@ function assumptions(): string[] {
     .map((value) => value.trim())
     .filter(Boolean);
 }
+
+function setAssumptions(values: string[]): void {
+  documentState.assumptions = values.join("\n");
+  renderAssumptionList();
+  updateCaptureAssumptions();
+  scheduleSave();
+  scheduleChecks(documentState.rows[0]?.id ?? "", true);
+}
+
+function renderAssumptionList(): void {
+  assumptionList.replaceChildren();
+  assumptions().forEach((latex, index) => {
+    const item = document.createElement("div");
+    item.className = "assumption-item";
+    const field = new MathfieldElement();
+    field.value = latex;
+    field.readOnly = true;
+    field.className = "saved-assumption";
+    field.setAttribute("aria-label", `Assumption ${index + 1}`);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "remove-assumption";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", `Remove assumption ${index + 1}`);
+    remove.addEventListener("click", () => {
+      const values = assumptions();
+      values.splice(index, 1);
+      setAssumptions(values);
+    });
+    item.append(field, remove);
+    assumptionList.append(item);
+  });
+}
+
+renderAssumptionList();
+
+function acceptLatexSuggestion(field: MathfieldElement, event: KeyboardEvent): boolean {
+  if (event.key !== "Enter" || field.mode !== "latex") return false;
+  const suggestion = document.querySelector<HTMLElement>(
+    "#mathlive-suggestion-popover.is-visible .ML__popover__current[data-command]",
+  )?.dataset.command;
+  if (!suggestion) return false;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  field.executeCommand(["complete", "reject"]);
+  const template = suggestion === "\\sqrt" ? "\\sqrt{#?}" : suggestion;
+  field.insert(template, {
+    format: "latex",
+    mode: "math",
+    selectionMode: "placeholder",
+  });
+  return true;
+}
+
+assumptionEditor.addEventListener("input", () => {
+  assumptionError.hidden = true;
+  assumptionError.textContent = "";
+});
+
+assumptionEditor.addEventListener("keydown", (event: KeyboardEvent) => {
+  acceptLatexSuggestion(assumptionEditor, event);
+}, { capture: true });
+
+assumptionEditor.addEventListener("keydown", async (event: KeyboardEvent) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  const submitted = assumptionEditor.value.trim();
+  if (!submitted) return;
+  assumptionError.hidden = false;
+  assumptionError.className = "assumption-error validating";
+  assumptionError.textContent = "Checking assumption…";
+  const validation = await validateAssumptionInWorker(submitted);
+  if (!validation.valid) {
+    assumptionError.className = "assumption-error invalid";
+    assumptionError.textContent = validation.message;
+    assumptionEditor.focus();
+    return;
+  }
+  const values = assumptions();
+  if (values.includes(validation.latex)) {
+    assumptionError.className = "assumption-error invalid";
+    assumptionError.textContent = "That assumption is already in the list.";
+    assumptionEditor.focus();
+    return;
+  }
+  values.push(validation.latex);
+  setAssumptions(values);
+  if (assumptionEditor.value.trim() === submitted) assumptionEditor.value = "";
+  assumptionError.hidden = true;
+  assumptionError.textContent = "";
+  assumptionEditor.focus();
+});
 
 function scheduleSave(): void {
   saveStatus.textContent = "Saving…";
@@ -153,6 +268,7 @@ function rowStatusMarkup(index: number, state?: RowState): string {
   if (state.verdict === "checking") return '<span class="status checking">Checking…</span>';
   const label = {
     equivalent: "Equivalent",
+    "equivalent-domain-change": "Equivalent · domain changed",
     "not-equivalent": "Different",
     unknown: "Uncertain",
   }[state.verdict];
@@ -305,6 +421,9 @@ function renderRows(): void {
     field.addEventListener("input", syncFieldValue);
     field.addEventListener("change", syncFieldValue);
     field.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (acceptLatexSuggestion(field, event)) syncFieldValue();
+    }, { capture: true });
+    field.addEventListener("keydown", (event: KeyboardEvent) => {
       if (event.key === "Enter") {
         event.preventDefault();
         syncFieldValue();
@@ -366,17 +485,67 @@ function safeFilename(extension: string): string {
   return `${base.toLowerCase()}.${extension}`;
 }
 
+function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("The image could not be encoded as a PNG."));
+    }, "image/png");
+  });
+}
+
+async function copyPngToClipboard(blob: Blob): Promise<boolean> {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") return false;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    return true;
+  } catch (error) {
+    console.warn("The PNG could not be copied to the clipboard.", error);
+    return false;
+  }
+}
+
+interface ImageSaveHandle {
+  createWritable(): Promise<{
+    write(contents: Blob): Promise<void>;
+    close(): Promise<void>;
+  }>;
+}
+
+async function savePng(blob: Blob, filename: string): Promise<"saved" | "cancelled"> {
+  const showSaveFilePicker = (window as Window & {
+    showSaveFilePicker?: (options: {
+      suggestedName: string;
+      types: Array<{ description: string; accept: Record<string, string[]> }>;
+    }) => Promise<ImageSaveHandle>;
+  }).showSaveFilePicker;
+
+  if (!showSaveFilePicker) {
+    download(blob, filename);
+    return "saved";
+  }
+
+  try {
+    const handle = await showSaveFilePicker({
+      suggestedName: filename,
+      types: [{ description: "PNG image", accept: { "image/png": [".png"] } }],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return "saved";
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
+    console.warn("The native save picker was unavailable; using a browser download.", error);
+    download(blob, filename);
+    return "saved";
+  }
+}
+
 titleInput.addEventListener("input", () => {
   documentState.title = titleInput.value || "Untitled work";
   captureTitle.textContent = documentState.title;
   scheduleSave();
-});
-
-assumptionsInput.addEventListener("input", () => {
-  documentState.assumptions = assumptionsInput.value;
-  updateCaptureAssumptions();
-  scheduleSave();
-  scheduleChecks(documentState.rows[0]?.id ?? "", true);
 });
 
 document.querySelector("#add-row-button")?.addEventListener("click", () => {
@@ -407,10 +576,15 @@ document.querySelector("#export-csv-button")?.addEventListener("click", () => {
   );
 });
 
-document.querySelector("#export-image-button")?.addEventListener("click", async () => {
+document.querySelector("#export-image-button")?.addEventListener("click", async (event) => {
   const captureArea = document.querySelector<HTMLElement>("#capture-area");
   if (!captureArea) return;
+  const button = event.currentTarget as HTMLButtonElement;
+  const originalLabel = button.textContent;
   const fields = [...captureArea.querySelectorAll<MathfieldElement>("math-field")];
+  const readOnlyStates = fields.map((field) => field.readOnly);
+  button.disabled = true;
+  button.textContent = "Preparing image…";
   fields.forEach((field) => { field.readOnly = true; });
   captureArea.classList.add("exporting");
   try {
@@ -418,12 +592,25 @@ document.querySelector("#export-image-button")?.addEventListener("click", async 
       backgroundColor: getComputedStyle(captureArea).backgroundColor,
       scale: 2,
     });
-    canvas.toBlob((blob) => {
-      if (blob) download(blob, safeFilename("png"));
-    }, "image/png");
+    const blob = await canvasToPng(canvas);
+    const copied = await copyPngToClipboard(blob);
+    button.textContent = copied ? "Copied — choose location…" : "Choose save location…";
+    const saveResult = await savePng(blob, safeFilename("png"));
+    if (saveResult === "saved") {
+      saveStatus.textContent = copied
+        ? "Image copied to clipboard and saved"
+        : "Image saved; clipboard access was unavailable";
+    } else {
+      saveStatus.textContent = copied ? "Image copied to clipboard" : "Image save cancelled";
+    }
+  } catch (error) {
+    console.error(error);
+    saveStatus.textContent = "Could not create image";
   } finally {
     captureArea.classList.remove("exporting");
-    fields.forEach((field) => { field.readOnly = false; });
+    fields.forEach((field, index) => { field.readOnly = readOnlyStates[index]; });
+    button.disabled = false;
+    button.textContent = originalLabel;
   }
 });
 
@@ -434,8 +621,10 @@ document.querySelector("#clear-button")?.addEventListener("click", () => {
   rowStates.clear();
   rowGenerations.clear();
   titleInput.value = documentState.title;
-  assumptionsInput.value = "";
+  assumptionEditor.value = "";
+  assumptionError.hidden = true;
   captureTitle.textContent = documentState.title;
+  renderAssumptionList();
   updateCaptureAssumptions();
   renderRows();
   scheduleSave();
@@ -503,14 +692,18 @@ async function restoreDocument(): Promise<void> {
   rowStates.clear();
   rowGenerations.clear();
   titleInput.value = restored.title;
-  assumptionsInput.value = restored.assumptions;
   captureTitle.textContent = restored.title;
+  renderAssumptionList();
   updateCaptureAssumptions();
   renderRows();
   checkAllRows();
+  const firstRowId = documentState.rows[0]?.id;
+  if (firstRowId) focusRow(firstRowId);
 }
 
 void restoreDocument().catch((error) => {
   console.error("The saved document could not be restored.", error);
   saveStatus.textContent = "Could not load saved work";
+  const firstRowId = documentState.rows[0]?.id;
+  if (firstRowId) focusRow(firstRowId);
 });
