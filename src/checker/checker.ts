@@ -47,7 +47,8 @@ function unwrapGroupedDerivativeOperators(latex: string): string {
 }
 
 function groupLeibnizDerivativeOperands(latex: string): string {
-  const derivative = /\\(?:dfrac|frac)\s*\{\s*d\s*\}\s*\{\s*d\s*[A-Za-z][A-Za-z0-9]*\s*\}/g;
+  const derivative =
+    /\\(?:dfrac|frac)\s*\{\s*d\s*\}\s*\{\s*d\s*(?:[A-Za-z][A-Za-z0-9]*|\\[A-Za-z]+)\s*\}/g;
   let output = latex;
   let searchFrom = 0;
 
