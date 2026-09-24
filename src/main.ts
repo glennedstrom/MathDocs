@@ -14,6 +14,8 @@ import {
 } from "./storage";
 import "./styles.css";
 
+MathfieldElement.soundsDirectory = null;
+
 type RowState = CheckResult | { verdict: "checking"; message: string };
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -122,6 +124,7 @@ assumptionEditor.className = "assumption-editor";
 assumptionEditor.setAttribute("aria-label", "New assumption");
 assumptionEditor.setAttribute("placeholder", "\\text{Type an assumption, then press Enter}");
 assumptionEditor.smartMode = true;
+assumptionEditor.popoverPolicy = "auto";
 assumptionEditor.mathVirtualKeyboardPolicy = "auto";
 assumptionEditorHost.append(assumptionEditor);
 
@@ -204,12 +207,42 @@ function acceptLatexSuggestion(field: MathfieldElement, event: KeyboardEvent): b
   return true;
 }
 
+function handlePhysicalMathShortcut(field: MathfieldElement, event: KeyboardEvent): boolean {
+  if (event.isComposing || event.metaKey) return false;
+
+  if (event.key === "\\" && field.mode === "math") {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    field.executeCommand(["switchMode", "latex", "", "\\"]);
+    return true;
+  }
+
+  if (
+    event.key === "/" &&
+    field.mode === "math" &&
+    !event.altKey &&
+    !event.ctrlKey
+  ) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    field.insert("\\frac{#@}{#?}", {
+      format: "latex",
+      mode: "math",
+      selectionMode: "placeholder",
+    });
+    return true;
+  }
+
+  return false;
+}
+
 assumptionEditor.addEventListener("input", () => {
   assumptionError.hidden = true;
   assumptionError.textContent = "";
 });
 
 assumptionEditor.addEventListener("keydown", (event: KeyboardEvent) => {
+  if (handlePhysicalMathShortcut(assumptionEditor, event)) return;
   acceptLatexSuggestion(assumptionEditor, event);
 }, { capture: true });
 
@@ -406,6 +439,7 @@ function renderRows(): void {
     field.className = "math-input";
     field.setAttribute("aria-label", index === 0 ? "Original expression" : `Math step ${index + 1}`);
     field.smartMode = true;
+    field.popoverPolicy = "auto";
     field.mathVirtualKeyboardPolicy = "auto";
     const syncFieldValue = (): void => {
       if (row.latex === field.value) return;
@@ -421,6 +455,10 @@ function renderRows(): void {
     field.addEventListener("input", syncFieldValue);
     field.addEventListener("change", syncFieldValue);
     field.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (handlePhysicalMathShortcut(field, event)) {
+        syncFieldValue();
+        return;
+      }
       if (acceptLatexSuggestion(field, event)) syncFieldValue();
     }, { capture: true });
     field.addEventListener("keydown", (event: KeyboardEvent) => {

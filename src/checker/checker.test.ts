@@ -135,6 +135,14 @@ describe("checkEquivalence", () => {
     expect(checked.verdict, JSON.stringify(checked)).toBe("equivalent");
   });
 
+  it("keeps a trailing sum term outside a derivative with a Greek variable", () => {
+    const checked = checkEquivalence(
+      "\\frac{\\differentialD}{\\differentialD\\theta}\\sin\\left(\\frac{\\pi}{2}-\\theta\\right)\\cdot\\theta^2",
+      "\\frac{\\differentialD}{\\differentialD\\theta}\\theta^2\\sin\\left(\\frac{\\pi}{2}-\\theta\\right)+4",
+    );
+    expect(checked.verdict, JSON.stringify(checked)).toBe("not-equivalent");
+  });
+
   it("reports unsupported commands specifically", () => {
     const checked = checkEquivalence("\\notARealMathCommand x", "x");
     expect(checked.method).toBe("parse-error");
