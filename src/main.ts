@@ -2,7 +2,11 @@ import { MathfieldElement } from "mathlive";
 import "mathlive/fonts.css";
 import html2canvas from "html2canvas";
 import { registerSW } from "virtual:pwa-register";
-import { checkInWorker, validateAssumptionInWorker } from "./checker/client";
+import {
+  checkAssumptionsInWorker,
+  checkInWorker,
+  validateAssumptionInWorker,
+} from "./checker/client";
 import type { CheckResult } from "./checker/types";
 import { parseEquationCsv, serializeEquationCsv } from "./csv";
 import {
@@ -27,6 +31,12 @@ const rowGenerations = new Map<string, number>();
 let referenceGeneration = 0;
 let saveTimer: number | undefined;
 let checkTimer: number | undefined;
+let assumptionCheckTimer: number | undefined;
+let assumptionCheckGeneration = 0;
+let savedConflictingAssumptions = new Set<number>();
+let savedAssumptionConflictMessage = "";
+let candidateConflictingAssumptions = new Set<number>();
+let candidateAssumptionConflicts = false;
 
 app.innerHTML = `
   <header class="app-header">
@@ -35,6 +45,7 @@ app.innerHTML = `
       <span>MathDocs</span>
     </a>
     <div class="header-actions">
+      <a class="settings-link" href="#settings" id="settings-link">Settings</a>
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch to light theme">
         <span class="theme-icon" aria-hidden="true">☀</span>
         <span class="theme-label">Light</span>
@@ -43,7 +54,7 @@ app.innerHTML = `
     </div>
   </header>
 
-  <main>
+  <main id="workset-page">
     <section class="page-heading">
       <div>
         <p class="breadcrumb">Home&nbsp;&nbsp;/&nbsp;&nbsp;Workset</p>
@@ -98,6 +109,34 @@ app.innerHTML = `
       </div>
     </details>
   </main>
+
+  <main class="settings-page" id="settings-page" hidden>
+    <section class="settings-heading">
+      <p class="breadcrumb">Home&nbsp;&nbsp;/&nbsp;&nbsp;Settings</p>
+      <div class="settings-title-row">
+        <div>
+          <h1>Settings</h1>
+          <p>Customize how the math editor behaves on this device.</p>
+        </div>
+        <a class="button settings-back" href="#">Back to workset</a>
+      </div>
+    </section>
+
+    <section class="settings-card" aria-labelledby="editor-settings-title">
+      <h2 id="editor-settings-title">Math editor</h2>
+      <label class="setting-row" for="automatic-shortcuts">
+        <span>
+          <strong>Automatic symbol shortcuts</strong>
+          <small>Convert plain typed abbreviations such as <code>in</code> to <code>∈</code>. Explicit commands such as <code>\\in</code> and their suggestions still work.</small>
+        </span>
+        <span class="switch">
+          <input type="checkbox" id="automatic-shortcuts" />
+          <span class="switch-track" aria-hidden="true"></span>
+        </span>
+      </label>
+      <p class="settings-note" id="settings-save-status" aria-live="polite"></p>
+    </section>
+  </main>
 `;
 
 function requiredElement<T extends Element>(selector: string): T {
@@ -115,6 +154,40 @@ const captureTitle = requiredElement<HTMLElement>("#capture-title");
 const captureAssumptions = requiredElement<HTMLElement>("#capture-assumptions");
 const saveStatus = requiredElement<HTMLElement>("#save-status");
 const fileInput = requiredElement<HTMLInputElement>("#file-input");
+const worksetPage = requiredElement<HTMLElement>("#workset-page");
+const settingsPage = requiredElement<HTMLElement>("#settings-page");
+const settingsLink = requiredElement<HTMLAnchorElement>("#settings-link");
+const automaticShortcutsToggle = requiredElement<HTMLInputElement>("#automatic-shortcuts");
+const settingsSaveStatus = requiredElement<HTMLElement>("#settings-save-status");
+
+const AUTOMATIC_SHORTCUTS_KEY = "mathdocs-automatic-shortcuts";
+
+function loadAutomaticShortcutsPreference(): boolean {
+  try {
+    return localStorage.getItem(AUTOMATIC_SHORTCUTS_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+let automaticShortcutsEnabled = loadAutomaticShortcutsPreference();
+const defaultInlineShortcuts = new WeakMap<
+  MathfieldElement,
+  MathfieldElement["inlineShortcuts"]
+>();
+
+function configureInlineShortcuts(field: MathfieldElement): void {
+  let shortcuts = defaultInlineShortcuts.get(field);
+  if (!shortcuts) {
+    shortcuts = { ...field.inlineShortcuts };
+    defaultInlineShortcuts.set(field, shortcuts);
+  }
+  field.inlineShortcuts = automaticShortcutsEnabled ? { ...shortcuts } : {};
+}
+
+function configureInlineShortcutsWhenMounted(field: MathfieldElement): void {
+  field.addEventListener("mount", () => configureInlineShortcuts(field), { once: true });
+}
 
 titleInput.value = documentState.title;
 captureTitle.textContent = documentState.title;
@@ -126,6 +199,7 @@ assumptionEditor.setAttribute("placeholder", "\\text{Type an assumption, then pr
 assumptionEditor.smartMode = true;
 assumptionEditor.popoverPolicy = "auto";
 assumptionEditor.mathVirtualKeyboardPolicy = "auto";
+configureInlineShortcutsWhenMounted(assumptionEditor);
 assumptionEditorHost.append(assumptionEditor);
 
 function updateCaptureAssumptions(): void {
@@ -154,12 +228,55 @@ function assumptions(): string[] {
     .filter(Boolean);
 }
 
+function showSavedAssumptionConflict(): void {
+  if (savedConflictingAssumptions.size === 0) {
+    assumptionError.hidden = true;
+    assumptionError.textContent = "";
+    return;
+  }
+  assumptionError.hidden = false;
+  assumptionError.className = "assumption-error invalid conflict";
+  assumptionError.textContent = `${savedAssumptionConflictMessage} Remove or correct at least one highlighted assumption.`;
+}
+
+async function refreshSavedAssumptionConsistency(): Promise<void> {
+  const generation = ++assumptionCheckGeneration;
+  const values = assumptions();
+  const checked = await checkAssumptionsInWorker(
+    values,
+    documentState.rows[0]?.latex ?? "",
+  );
+  if (generation !== assumptionCheckGeneration) return;
+  savedConflictingAssumptions = checked.contradiction
+    ? new Set(checked.conflictingIndices)
+    : new Set<number>();
+  savedAssumptionConflictMessage = checked.contradiction ? checked.message : "";
+  renderAssumptionList();
+  if (!candidateAssumptionConflicts) showSavedAssumptionConflict();
+}
+
+function scheduleAssumptionConsistency(): void {
+  window.clearTimeout(assumptionCheckTimer);
+  assumptionCheckTimer = window.setTimeout(() => {
+    void refreshSavedAssumptionConsistency();
+  }, 300);
+}
+
 function setAssumptions(values: string[]): void {
+  assumptionCheckGeneration += 1;
+  savedConflictingAssumptions = new Set<number>();
+  savedAssumptionConflictMessage = "";
+  candidateConflictingAssumptions = new Set<number>();
+  candidateAssumptionConflicts = false;
+  assumptionEditor.classList.remove("invalid");
+  assumptionEditor.removeAttribute("aria-invalid");
+  showSavedAssumptionConflict();
   documentState.assumptions = values.join("\n");
   renderAssumptionList();
   updateCaptureAssumptions();
   scheduleSave();
   scheduleChecks(documentState.rows[0]?.id ?? "", true);
+  void refreshSavedAssumptionConsistency();
 }
 
 function renderAssumptionList(): void {
@@ -167,11 +284,18 @@ function renderAssumptionList(): void {
   assumptions().forEach((latex, index) => {
     const item = document.createElement("div");
     item.className = "assumption-item";
+    if (
+      savedConflictingAssumptions.has(index) ||
+      candidateConflictingAssumptions.has(index)
+    ) {
+      item.classList.add("conflicting");
+    }
     const field = new MathfieldElement();
     field.value = latex;
     field.readOnly = true;
     field.className = "saved-assumption";
     field.setAttribute("aria-label", `Assumption ${index + 1}`);
+    if (item.classList.contains("conflicting")) field.setAttribute("aria-invalid", "true");
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "remove-assumption";
@@ -188,6 +312,7 @@ function renderAssumptionList(): void {
 }
 
 renderAssumptionList();
+void refreshSavedAssumptionConsistency();
 
 function acceptLatexSuggestion(field: MathfieldElement, event: KeyboardEvent): boolean {
   if (event.key !== "Enter" || field.mode !== "latex") return false;
@@ -208,7 +333,13 @@ function acceptLatexSuggestion(field: MathfieldElement, event: KeyboardEvent): b
 }
 
 function handlePhysicalMathShortcut(field: MathfieldElement, event: KeyboardEvent): boolean {
-  if (event.isComposing || event.metaKey) return false;
+  // On Windows, AltGr is commonly exposed as Ctrl+Alt. Treat it as a text
+  // modifier so custom keyboard layouts can still produce `\\` and `/`.
+  const usesAltGraph =
+    event.getModifierState("AltGraph") || (event.ctrlKey && event.altKey);
+  const usesCommandModifier =
+    event.metaKey || ((event.ctrlKey || event.altKey) && !usesAltGraph);
+  if (event.isComposing || usesCommandModifier) return false;
 
   if (event.key === "\\" && field.mode === "math") {
     event.preventDefault();
@@ -217,12 +348,7 @@ function handlePhysicalMathShortcut(field: MathfieldElement, event: KeyboardEven
     return true;
   }
 
-  if (
-    event.key === "/" &&
-    field.mode === "math" &&
-    !event.altKey &&
-    !event.ctrlKey
-  ) {
+  if (event.key === "/" && field.mode === "math") {
     event.preventDefault();
     event.stopImmediatePropagation();
     field.insert("\\frac{#@}{#?}", {
@@ -237,8 +363,14 @@ function handlePhysicalMathShortcut(field: MathfieldElement, event: KeyboardEven
 }
 
 assumptionEditor.addEventListener("input", () => {
-  assumptionError.hidden = true;
-  assumptionError.textContent = "";
+  const hadCandidateConflict =
+    candidateAssumptionConflicts || candidateConflictingAssumptions.size > 0;
+  candidateAssumptionConflicts = false;
+  candidateConflictingAssumptions = new Set<number>();
+  assumptionEditor.classList.remove("invalid");
+  assumptionEditor.removeAttribute("aria-invalid");
+  if (hadCandidateConflict) renderAssumptionList();
+  showSavedAssumptionConflict();
 });
 
 assumptionEditor.addEventListener("keydown", (event: KeyboardEvent) => {
@@ -255,9 +387,12 @@ assumptionEditor.addEventListener("keydown", async (event: KeyboardEvent) => {
   assumptionError.className = "assumption-error validating";
   assumptionError.textContent = "Checking assumption…";
   const validation = await validateAssumptionInWorker(submitted);
+  if (assumptionEditor.value.trim() !== submitted) return;
   if (!validation.valid) {
     assumptionError.className = "assumption-error invalid";
     assumptionError.textContent = validation.message;
+    assumptionEditor.classList.add("invalid");
+    assumptionEditor.setAttribute("aria-invalid", "true");
     assumptionEditor.focus();
     return;
   }
@@ -265,12 +400,37 @@ assumptionEditor.addEventListener("keydown", async (event: KeyboardEvent) => {
   if (values.includes(validation.latex)) {
     assumptionError.className = "assumption-error invalid";
     assumptionError.textContent = "That assumption is already in the list.";
+    assumptionEditor.classList.add("invalid");
+    assumptionEditor.setAttribute("aria-invalid", "true");
+    assumptionEditor.focus();
+    return;
+  }
+  assumptionError.className = "assumption-error validating";
+  assumptionError.textContent = "Checking all assumptions together…";
+  const consistency = await checkAssumptionsInWorker(
+    [...values, validation.latex],
+    documentState.rows[0]?.latex ?? "",
+  );
+  if (assumptionEditor.value.trim() !== submitted) return;
+  if (consistency.contradiction) {
+    const candidateIndex = values.length;
+    candidateConflictingAssumptions = new Set(
+      consistency.conflictingIndices.filter((index) => index !== candidateIndex),
+    );
+    candidateAssumptionConflicts = consistency.conflictingIndices.includes(candidateIndex);
+    renderAssumptionList();
+    assumptionEditor.classList.toggle("invalid", candidateAssumptionConflicts);
+    if (candidateAssumptionConflicts) assumptionEditor.setAttribute("aria-invalid", "true");
+    assumptionError.className = "assumption-error invalid conflict";
+    assumptionError.textContent = `${consistency.message} Correct the highlighted new assumption or change an existing one.`;
     assumptionEditor.focus();
     return;
   }
   values.push(validation.latex);
   setAssumptions(values);
   if (assumptionEditor.value.trim() === submitted) assumptionEditor.value = "";
+  assumptionEditor.classList.remove("invalid");
+  assumptionEditor.removeAttribute("aria-invalid");
   assumptionError.hidden = true;
   assumptionError.textContent = "";
   assumptionEditor.focus();
@@ -414,7 +574,10 @@ function removeRow(index: number): void {
     rowStates.delete(removed.id);
     rowGenerations.delete(removed.id);
   }
-  if (index === 0) referenceGeneration += 1;
+  if (index === 0) {
+    referenceGeneration += 1;
+    scheduleAssumptionConsistency();
+  }
   const focusTarget = documentState.rows[Math.max(0, index - 1)]?.id;
   renderRows();
   scheduleSave();
@@ -441,11 +604,15 @@ function renderRows(): void {
     field.smartMode = true;
     field.popoverPolicy = "auto";
     field.mathVirtualKeyboardPolicy = "auto";
+    configureInlineShortcutsWhenMounted(field);
     const syncFieldValue = (): void => {
       if (row.latex === field.value) return;
       row.latex = field.value;
       rowGenerations.set(row.id, (rowGenerations.get(row.id) ?? 0) + 1);
-      if (index === 0) referenceGeneration += 1;
+      if (index === 0) {
+        referenceGeneration += 1;
+        scheduleAssumptionConsistency();
+      }
       if (field.value) emptyBackspaceReady = false;
       rowStates.delete(row.id);
       updateRowResult(row.id);
@@ -598,6 +765,7 @@ fileInput.addEventListener("change", async () => {
   if (equations.length > 0) {
     referenceGeneration += 1;
     documentState.rows = equations.map((latex) => ({ id: createId(), latex }));
+    scheduleAssumptionConsistency();
     rowStates.clear();
     rowGenerations.clear();
     renderRows();
@@ -656,10 +824,17 @@ document.querySelector("#clear-button")?.addEventListener("click", () => {
   if (!window.confirm("Clear this document and start over?")) return;
   documentState = createEmptyDocument();
   referenceGeneration += 1;
+  assumptionCheckGeneration += 1;
+  savedConflictingAssumptions = new Set<number>();
+  savedAssumptionConflictMessage = "";
+  candidateConflictingAssumptions = new Set<number>();
+  candidateAssumptionConflicts = false;
   rowStates.clear();
   rowGenerations.clear();
   titleInput.value = documentState.title;
   assumptionEditor.value = "";
+  assumptionEditor.classList.remove("invalid");
+  assumptionEditor.removeAttribute("aria-invalid");
   assumptionError.hidden = true;
   captureTitle.textContent = documentState.title;
   renderAssumptionList();
@@ -698,6 +873,32 @@ document.querySelector("#theme-toggle")?.addEventListener("click", () => {
   }
 });
 
+function updatePageFromHash(): void {
+  const showSettings = window.location.hash === "#settings";
+  worksetPage.hidden = showSettings;
+  settingsPage.hidden = !showSettings;
+  if (showSettings) settingsLink.setAttribute("aria-current", "page");
+  else settingsLink.removeAttribute("aria-current");
+}
+
+automaticShortcutsToggle.checked = automaticShortcutsEnabled;
+automaticShortcutsToggle.addEventListener("change", () => {
+  automaticShortcutsEnabled = automaticShortcutsToggle.checked;
+  configureInlineShortcuts(assumptionEditor);
+  equationList
+    .querySelectorAll<MathfieldElement>("math-field.math-input")
+    .forEach(configureInlineShortcuts);
+  try {
+    localStorage.setItem(AUTOMATIC_SHORTCUTS_KEY, String(automaticShortcutsEnabled));
+    settingsSaveStatus.textContent = "Saved on this device.";
+  } catch {
+    settingsSaveStatus.textContent = "Applied for this session; local storage is unavailable.";
+  }
+});
+
+window.addEventListener("hashchange", updatePageFromHash);
+updatePageFromHash();
+
 function updateNetworkStatus(): void {
   const status = document.querySelector<HTMLElement>("#network-status");
   if (status) status.textContent = navigator.onLine ? "Offline ready" : "Working offline";
@@ -726,6 +927,11 @@ renderRows();
 async function restoreDocument(): Promise<void> {
   const restored = await loadDocument();
   referenceGeneration += 1;
+  assumptionCheckGeneration += 1;
+  savedConflictingAssumptions = new Set<number>();
+  savedAssumptionConflictMessage = "";
+  candidateConflictingAssumptions = new Set<number>();
+  candidateAssumptionConflicts = false;
   documentState = restored;
   rowStates.clear();
   rowGenerations.clear();
@@ -733,6 +939,7 @@ async function restoreDocument(): Promise<void> {
   captureTitle.textContent = restored.title;
   renderAssumptionList();
   updateCaptureAssumptions();
+  void refreshSavedAssumptionConsistency();
   renderRows();
   checkAllRows();
   const firstRowId = documentState.rows[0]?.id;

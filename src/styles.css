@@ -66,6 +66,15 @@ button { color: inherit; }
   gap: 22px;
 }
 
+.settings-link {
+  color: #dce6ed;
+  text-decoration: none;
+  font-size: .78rem;
+}
+
+.settings-link:hover,
+.settings-link[aria-current="page"] { color: #fff; text-decoration: underline; }
+
 .theme-toggle {
   height: 32px;
   display: inline-flex;
@@ -191,6 +200,12 @@ h1 {
   background: #f7f8f8;
 }
 
+.assumption-item.conflicting {
+  border-color: var(--red);
+  box-shadow: 0 0 0 1px rgba(255, 107, 97, .18);
+  background: #fff3f2;
+}
+
 math-field.saved-assumption {
   min-width: 0;
   padding: 3px 5px 3px 8px;
@@ -232,8 +247,20 @@ math-field.assumption-editor {
 }
 
 math-field.assumption-editor:focus-within { border-color: var(--accent); }
+math-field.assumption-editor.invalid,
+math-field.assumption-editor.invalid:focus-within {
+  border-color: var(--red);
+  box-shadow: 0 0 0 1px rgba(255, 107, 97, .18);
+}
 .assumption-error { margin: 0; color: var(--red); font-size: .7rem; }
 .assumption-error.validating { color: var(--muted); }
+.assumption-error.conflict {
+  padding: 7px 9px;
+  border-left: 3px solid var(--red);
+  background: #fff3f2;
+  font-weight: 600;
+  line-height: 1.4;
+}
 .toolbar-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 
 .button {
@@ -410,6 +437,104 @@ math-field.math-input:focus-within { border-color: var(--accent); }
 .help-grid p { margin: 0; font-size: .78rem; line-height: 1.5; }
 .help-grid strong { color: #4c5964; }
 
+.settings-page[hidden],
+#workset-page[hidden] { display: none; }
+
+.settings-heading { margin-bottom: 24px; }
+.settings-title-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.settings-title-row p {
+  margin: 6px 0 0;
+  color: #7f8b94;
+  font-size: .84rem;
+}
+
+.button.settings-back {
+  display: inline-flex;
+  align-items: center;
+  color: #596771;
+  text-decoration: none;
+}
+
+.settings-card {
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.settings-card h2 {
+  margin: 0;
+  padding: 14px 18px;
+  color: #43515b;
+  border-bottom: 1px solid var(--line);
+  background: #fafafa;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 18px;
+  cursor: pointer;
+}
+
+.setting-row > span:first-child { display: grid; gap: 6px; }
+.setting-row strong { color: #46545e; font-size: .9rem; }
+.setting-row small { color: #7d8991; font-size: .78rem; line-height: 1.5; }
+.setting-row code {
+  padding: 1px 4px;
+  color: #4d5b65;
+  border: 1px solid #d9dee2;
+  background: #f4f6f7;
+}
+
+.switch { position: relative; flex: 0 0 auto; width: 42px; height: 24px; }
+.switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: #aeb8be;
+  transition: background .15s ease;
+}
+
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .15s ease;
+}
+
+.switch input:checked + .switch-track { background: var(--accent); }
+.switch input:checked + .switch-track::after { transform: translateX(18px); }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.settings-note {
+  min-height: 1em;
+  margin: 0;
+  padding: 0 18px 14px;
+  color: #7d8991;
+  font-size: .72rem;
+}
+
 .sheet.exporting .remove-row { display: none; }
 .sheet.exporting .parse-details { display: none; }
 .sheet.exporting .equation-row { grid-template-columns: 38px minmax(250px, 1fr) minmax(190px, 275px); }
@@ -430,7 +555,8 @@ html[data-theme="dark"] .legend { color: #8e9ba4; }
 
 html[data-theme="dark"] .toolbar,
 html[data-theme="dark"] .sheet,
-html[data-theme="dark"] .help {
+html[data-theme="dark"] .help,
+html[data-theme="dark"] .settings-card {
   border-color: #35434d;
   background: #202a32;
 }
@@ -447,9 +573,15 @@ html[data-theme="dark"] math-field.math-input {
 
 html[data-theme="dark"] .toolbar input::placeholder { color: #65747e; }
 html[data-theme="dark"] .assumption-item { border-color: #465660; background: #29353e; }
+html[data-theme="dark"] .assumption-item.conflicting {
+  border-color: #ee817a;
+  box-shadow: 0 0 0 1px rgba(238, 129, 122, .18);
+  background: #35282a;
+}
 html[data-theme="dark"] math-field.saved-assumption { color: #d7dfe4; }
 html[data-theme="dark"] .remove-assumption { color: #85939c; border-left-color: #465660; }
 html[data-theme="dark"] .remove-assumption:hover { color: #ff8179; background: #35282a; }
+html[data-theme="dark"] .assumption-error.conflict { background: #35282a; }
 html[data-theme="dark"] .button {
   color: #cbd4d9;
   border-color: #475660;
@@ -488,6 +620,21 @@ html[data-theme="dark"] .remove-row:hover { color: #ff8179; background: #35282a;
 html[data-theme="dark"] .help { color: #98a5ad; }
 html[data-theme="dark"] .help summary,
 html[data-theme="dark"] .help-grid strong { color: #d1d9de; }
+html[data-theme="dark"] .settings-title-row p,
+html[data-theme="dark"] .setting-row small,
+html[data-theme="dark"] .settings-note { color: #98a5ad; }
+html[data-theme="dark"] .settings-card h2 {
+  color: #d5dde2;
+  border-bottom-color: #35434d;
+  background: #1b252c;
+}
+html[data-theme="dark"] .setting-row strong { color: #d7dfe4; }
+html[data-theme="dark"] .setting-row code {
+  color: #d7dfe4;
+  border-color: #465660;
+  background: #172027;
+}
+html[data-theme="dark"] .button.settings-back { color: #cbd4d9; }
 
 @media (max-width: 980px) {
   .toolbar { grid-template-columns: 1fr 1fr; }
@@ -510,6 +657,8 @@ html[data-theme="dark"] .help-grid strong { color: #d1d9de; }
   .help-grid { grid-template-columns: 1fr; }
   .app-header { padding-inline: 14px; }
   .sheet-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .settings-title-row { align-items: flex-start; flex-direction: column; }
+  .setting-row { align-items: flex-start; }
 }
 
 @media print {

@@ -44,6 +44,12 @@ export interface AssumptionValidationResult {
   latex: string;
 }
 
+export interface AssumptionConsistencyResult {
+  contradiction: boolean;
+  message: string;
+  conflictingIndices: number[];
+}
+
 export interface AssumptionValidationRequest {
   kind: "validate-assumption";
   id: number;
@@ -56,5 +62,18 @@ export interface AssumptionValidationResponse {
   result: AssumptionValidationResult;
 }
 
-export type WorkerRequest = CheckRequest | AssumptionValidationRequest;
-export type WorkerResponse = CheckResponse | AssumptionValidationResponse;
+export interface AssumptionConsistencyRequest {
+  kind: "check-assumptions";
+  id: number;
+  assumptions: string[];
+  referenceLatex: string;
+}
+
+export interface AssumptionConsistencyResponse {
+  kind: "check-assumptions";
+  id: number;
+  result: AssumptionConsistencyResult;
+}
+
+export type WorkerRequest = CheckRequest | AssumptionValidationRequest | AssumptionConsistencyRequest;
+export type WorkerResponse = CheckResponse | AssumptionValidationResponse | AssumptionConsistencyResponse;

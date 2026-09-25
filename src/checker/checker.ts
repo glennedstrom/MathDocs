@@ -4,7 +4,12 @@ import {
   type Expression,
   type ExpressionInput,
 } from "@cortex-js/compute-engine";
-import type { AssumptionValidationResult, CheckContext, CheckResult } from "./types";
+import type {
+  AssumptionConsistencyResult,
+  AssumptionValidationResult,
+  CheckContext,
+  CheckResult,
+} from "./types";
 
 type MathJson = string | number | readonly MathJson[] | Record<string, unknown>;
 
@@ -168,6 +173,77 @@ export function validateAssumption(latex: string): AssumptionValidationResult {
       latex: normalized,
     };
   }
+}
+
+function hasKnownAssumptionContradiction(
+  assumptions: string[],
+  referenceLatex = "",
+): boolean {
+  const normalized = assumptions.map(normalizeLatex).filter(Boolean);
+  const normalizedReference = normalizeLatex(referenceLatex);
+  if (normalized.length === 0 && !normalizedReference) return false;
+
+  try {
+    const constraints = normalizedReference
+      ? [normalizedReference, ...normalized]
+      : normalized;
+    const discoveryEngine = new ComputeEngine();
+    const symbols = new Set(
+      constraints.flatMap((constraint) =>
+        discoveryEngine.parse(constraint, { form: "raw" }).unknowns,
+      ),
+    );
+    const engine = new ComputeEngine();
+    for (const symbol of symbols) engine.declare(symbol, "real");
+    return constraints.some((constraint) => engine.assume(constraint) === "contradiction");
+  } catch {
+    return false;
+  }
+}
+
+export function checkAssumptionConsistency(
+  assumptions: string[],
+  referenceLatex = "",
+): AssumptionConsistencyResult {
+  const indexed = assumptions
+    .map((latex, index) => ({ index, latex: normalizeLatex(latex) }))
+    .filter(({ latex }) => Boolean(latex));
+  const normalizedReference = normalizeLatex(referenceLatex);
+  if (
+    (normalizedReference && hasKnownAssumptionContradiction([], normalizedReference)) ||
+    !hasKnownAssumptionContradiction(
+      indexed.map(({ latex }) => latex),
+      normalizedReference,
+    )
+  ) {
+    return {
+      contradiction: false,
+      message: "No contradiction was found.",
+      conflictingIndices: [],
+    };
+  }
+
+  let conflict = indexed;
+  for (const candidate of [...conflict]) {
+    const withoutCandidate = conflict.filter(({ index }) => index !== candidate.index);
+    if (
+      withoutCandidate.length > 0 &&
+      hasKnownAssumptionContradiction(
+        withoutCandidate.map(({ latex }) => latex),
+        normalizedReference,
+      )
+    ) {
+      conflict = withoutCandidate;
+    }
+  }
+
+  return {
+    contradiction: true,
+    message: normalizedReference
+      ? "These assumptions cannot all be true while the original equation is satisfied."
+      : "These assumptions cannot all be true at the same time.",
+    conflictingIndices: conflict.map(({ index }) => index),
+  };
 }
 
 function result(

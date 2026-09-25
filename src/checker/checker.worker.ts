@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { checkEquivalence, validateAssumption } from "./checker";
+import { checkAssumptionConsistency, checkEquivalence, validateAssumption } from "./checker";
 import type { WorkerRequest, WorkerResponse } from "./types";
 
 self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
@@ -11,6 +11,12 @@ self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
         id: request.id,
         result: validateAssumption(request.latex),
       }
+    : request.kind === "check-assumptions"
+      ? {
+          kind: "check-assumptions",
+          id: request.id,
+          result: checkAssumptionConsistency(request.assumptions, request.referenceLatex),
+        }
     : {
         kind: "check",
         id: request.id,

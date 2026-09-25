@@ -1,4 +1,6 @@
 import type {
+  AssumptionConsistencyRequest,
+  AssumptionConsistencyResult,
   AssumptionValidationRequest,
   AssumptionValidationResult,
   CheckContext,
@@ -19,6 +21,10 @@ const pendingAssumptions = new Map<
   number,
   { resolve: (result: AssumptionValidationResult) => void; timer: number }
 >();
+const pendingAssumptionSets = new Map<
+  number,
+  { resolve: (result: AssumptionConsistencyResult) => void; timer: number }
+>();
 
 function createWorker(): Worker {
   const instance = new Worker(new URL("./checker.worker.ts", import.meta.url), { type: "module" });
@@ -28,6 +34,12 @@ function createWorker(): Worker {
       if (!item) return;
       window.clearTimeout(item.timer);
       pendingAssumptions.delete(event.data.id);
+      item.resolve(event.data.result);
+    } else if (event.data.kind === "check-assumptions") {
+      const item = pendingAssumptionSets.get(event.data.id);
+      if (!item) return;
+      window.clearTimeout(item.timer);
+      pendingAssumptionSets.delete(event.data.id);
       item.resolve(event.data.result);
     } else {
       const item = pending.get(event.data.id);
@@ -88,6 +100,33 @@ export function validateAssumptionInWorker(latex: string): Promise<AssumptionVal
     }, 1_500);
     pendingAssumptions.set(id, { resolve, timer });
     const request: AssumptionValidationRequest = { kind: "validate-assumption", id, latex };
+    worker?.postMessage(request);
+  });
+}
+
+export function checkAssumptionsInWorker(
+  assumptions: string[],
+  referenceLatex = "",
+): Promise<AssumptionConsistencyResult> {
+  worker ??= createWorker();
+  const id = nextId++;
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      pendingAssumptionSets.delete(id);
+      resolve({
+        contradiction: false,
+        message: "The assumption consistency check timed out.",
+        conflictingIndices: [],
+      });
+      restartWorker();
+    }, 3_000);
+    pendingAssumptionSets.set(id, { resolve, timer });
+    const request: AssumptionConsistencyRequest = {
+      kind: "check-assumptions",
+      id,
+      assumptions,
+      referenceLatex,
+    };
     worker?.postMessage(request);
   });
 }

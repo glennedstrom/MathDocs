@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkEquivalence, validateAssumption } from "./checker";
+import { checkAssumptionConsistency, checkEquivalence, validateAssumption } from "./checker";
 
 describe("validateAssumption", () => {
   it("accepts a rendered relation", () => {
@@ -10,6 +10,25 @@ describe("validateAssumption", () => {
   it("rejects malformed notation and standalone expressions", () => {
     expect(validateAssumption("x>").valid).toBe(false);
     expect(validateAssumption("x+1").valid).toBe(false);
+  });
+
+  it("identifies only the assumptions needed to prove a contradiction", () => {
+    const checked = checkAssumptionConsistency(["x=5", "y>0", "x=10"]);
+    expect(checked.contradiction).toBe(true);
+    expect(checked.conflictingIndices).toEqual([0, 2]);
+  });
+
+  it("does not reject a satisfiable assumption set", () => {
+    expect(checkAssumptionConsistency(["x>0", "x<10"]).contradiction).toBe(false);
+  });
+
+  it("rejects assumptions that make the original equation unsatisfiable", () => {
+    const checked = checkAssumptionConsistency(
+      ["x=5", "y=3", "m=6", "b=2000"],
+      "y=mx+b",
+    );
+    expect(checked.contradiction).toBe(true);
+    expect(checked.conflictingIndices).toEqual([0, 1, 2, 3]);
   });
 });
 
