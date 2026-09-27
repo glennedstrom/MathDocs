@@ -60,6 +60,13 @@ button { color: inherit; }
   font-size: .78rem;
 }
 
+.build-version {
+  color: #9fb0bc;
+  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+  font-size: .7rem;
+  white-space: nowrap;
+}
+
 .header-actions {
   display: flex;
   align-items: center;

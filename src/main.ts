@@ -10,6 +10,10 @@ import {
 import type { CheckResult } from "./checker/types";
 import { parseEquationCsv, serializeEquationCsv } from "./csv";
 import {
+  handleMathfieldBeforeInput,
+  handleMathfieldKeydown,
+} from "./editor-input";
+import {
   createEmptyDocument,
   createId,
   loadDocument,
@@ -50,6 +54,7 @@ app.innerHTML = `
         <span class="theme-icon" aria-hidden="true">☀</span>
         <span class="theme-label">Light</span>
       </button>
+      <span class="build-version" id="build-version"></span>
       <span class="offline-pill" id="network-status">Offline ready</span>
     </div>
   </header>
@@ -159,6 +164,17 @@ const settingsPage = requiredElement<HTMLElement>("#settings-page");
 const settingsLink = requiredElement<HTMLAnchorElement>("#settings-link");
 const automaticShortcutsToggle = requiredElement<HTMLInputElement>("#automatic-shortcuts");
 const settingsSaveStatus = requiredElement<HTMLElement>("#settings-save-status");
+const buildVersion = requiredElement<HTMLElement>("#build-version");
+
+const shortBuildCommit = __BUILD_COMMIT__ === "local"
+  ? "local"
+  : __BUILD_COMMIT__.slice(0, 7);
+buildVersion.textContent = `Build ${shortBuildCommit}`;
+buildVersion.title = [
+  `Commit: ${__BUILD_COMMIT__}`,
+  `Branch: ${__BUILD_BRANCH__}`,
+  `Built: ${new Date(__BUILD_TIME__).toLocaleString()}`,
+].join("\n");
 
 const AUTOMATIC_SHORTCUTS_KEY = "mathdocs-automatic-shortcuts";
 
@@ -314,54 +330,6 @@ function renderAssumptionList(): void {
 renderAssumptionList();
 void refreshSavedAssumptionConsistency();
 
-function acceptLatexSuggestion(field: MathfieldElement, event: KeyboardEvent): boolean {
-  if (event.key !== "Enter" || field.mode !== "latex") return false;
-  const suggestion = document.querySelector<HTMLElement>(
-    "#mathlive-suggestion-popover.is-visible .ML__popover__current[data-command]",
-  )?.dataset.command;
-  if (!suggestion) return false;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  field.executeCommand(["complete", "reject"]);
-  const template = suggestion === "\\sqrt" ? "\\sqrt{#?}" : suggestion;
-  field.insert(template, {
-    format: "latex",
-    mode: "math",
-    selectionMode: "placeholder",
-  });
-  return true;
-}
-
-function handlePhysicalMathShortcut(field: MathfieldElement, event: KeyboardEvent): boolean {
-  // On Windows, AltGr is commonly exposed as Ctrl+Alt. Treat it as a text
-  // modifier so custom keyboard layouts can still produce `\\` and `/`.
-  const usesAltGraph =
-    event.getModifierState("AltGraph") || (event.ctrlKey && event.altKey);
-  const usesCommandModifier =
-    event.metaKey || ((event.ctrlKey || event.altKey) && !usesAltGraph);
-  if (event.isComposing || usesCommandModifier) return false;
-
-  if (event.key === "\\" && field.mode === "math") {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    field.executeCommand(["switchMode", "latex", "", "\\"]);
-    return true;
-  }
-
-  if (event.key === "/" && field.mode === "math") {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    field.insert("\\frac{#@}{#?}", {
-      format: "latex",
-      mode: "math",
-      selectionMode: "placeholder",
-    });
-    return true;
-  }
-
-  return false;
-}
-
 assumptionEditor.addEventListener("input", () => {
   const hadCandidateConflict =
     candidateAssumptionConflicts || candidateConflictingAssumptions.size > 0;
@@ -374,8 +342,10 @@ assumptionEditor.addEventListener("input", () => {
 });
 
 assumptionEditor.addEventListener("keydown", (event: KeyboardEvent) => {
-  if (handlePhysicalMathShortcut(assumptionEditor, event)) return;
-  acceptLatexSuggestion(assumptionEditor, event);
+  handleMathfieldKeydown(assumptionEditor, event);
+}, { capture: true });
+assumptionEditor.addEventListener("beforeinput", (event: InputEvent) => {
+  handleMathfieldBeforeInput(assumptionEditor, event);
 }, { capture: true });
 
 assumptionEditor.addEventListener("keydown", async (event: KeyboardEvent) => {
@@ -622,11 +592,10 @@ function renderRows(): void {
     field.addEventListener("input", syncFieldValue);
     field.addEventListener("change", syncFieldValue);
     field.addEventListener("keydown", (event: KeyboardEvent) => {
-      if (handlePhysicalMathShortcut(field, event)) {
-        syncFieldValue();
-        return;
-      }
-      if (acceptLatexSuggestion(field, event)) syncFieldValue();
+      if (handleMathfieldKeydown(field, event)) syncFieldValue();
+    }, { capture: true });
+    field.addEventListener("beforeinput", (event: InputEvent) => {
+      if (handleMathfieldBeforeInput(field, event)) syncFieldValue();
     }, { capture: true });
     field.addEventListener("keydown", (event: KeyboardEvent) => {
       if (event.key === "Enter") {
