@@ -57,6 +57,27 @@ function restartWorker(): void {
   worker = createWorker();
 }
 
+/** Stop active work and settle requests without starting a replacement worker. */
+export function stopChecker(): void {
+  worker?.terminate();
+  worker = undefined;
+  for (const item of pending.values()) {
+    window.clearTimeout(item.timer);
+    item.resolve({ verdict: "unknown", method: "timeout", message: "Checking is paused." });
+  }
+  pending.clear();
+  for (const item of pendingAssumptions.values()) {
+    window.clearTimeout(item.timer);
+    item.resolve({ valid: false, message: "Checking is paused.", latex: "" });
+  }
+  pendingAssumptions.clear();
+  for (const item of pendingAssumptionSets.values()) {
+    window.clearTimeout(item.timer);
+    item.resolve({ contradiction: false, message: "Checking is paused.", conflictingIndices: [] });
+  }
+  pendingAssumptionSets.clear();
+}
+
 export function checkInWorker(
   referenceLatex: string,
   candidateLatex: string,

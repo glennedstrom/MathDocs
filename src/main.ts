@@ -6,10 +6,12 @@ import {
   checkAssumptionsInWorker,
   checkInWorker,
   validateAssumptionInWorker,
+  stopChecker,
 } from "./checker/client";
 import type { CheckResult } from "./checker/types";
 import { parseEquationCsv, serializeEquationCsv } from "./csv";
 import {
+  configureCommandTemplates,
   handleMathfieldBeforeInput,
   handleMathfieldKeydown,
 } from "./editor-input";
@@ -72,6 +74,13 @@ app.innerHTML = `
         <span><i class="dot not-equivalent"></i> Different</span>
         <span><i class="dot unknown"></i> Uncertain</span>
       </div>
+      <label class="minimal-toggle" for="minimal-mode">
+        <span>Minimal</span>
+        <span class="switch">
+          <input type="checkbox" id="minimal-mode" role="switch" />
+          <span class="switch-track" aria-hidden="true"></span>
+        </span>
+      </label>
     </section>
 
     <section class="toolbar" aria-label="Document controls">
@@ -132,7 +141,7 @@ app.innerHTML = `
       <label class="setting-row" for="automatic-shortcuts">
         <span>
           <strong>Automatic symbol shortcuts</strong>
-          <small>Convert plain typed abbreviations such as <code>in</code> to <code>∈</code>. Explicit commands such as <code>\\in</code> and their suggestions still work.</small>
+          <small>Convert plain typed abbreviations such as <code>in</code> to <code>∈</code>. Off by default. For explicit LaTeX commands such as <code>\\in</code>, press Tab or Enter to render.</small>
         </span>
         <span class="switch">
           <input type="checkbox" id="automatic-shortcuts" />
@@ -164,6 +173,56 @@ const settingsPage = requiredElement<HTMLElement>("#settings-page");
 const settingsLink = requiredElement<HTMLAnchorElement>("#settings-link");
 const automaticShortcutsToggle = requiredElement<HTMLInputElement>("#automatic-shortcuts");
 const settingsSaveStatus = requiredElement<HTMLElement>("#settings-save-status");
+const minimalToggle = requiredElement<HTMLInputElement>("#minimal-mode");
+const MINIMAL_MODE_KEY = "mathdocs-minimal-mode";
+let minimalMode = false;
+try {
+  minimalMode = localStorage.getItem(MINIMAL_MODE_KEY) === "true";
+} catch {
+  // The switch still works when local storage is unavailable.
+}
+
+function updateMinimalModeAppearance(): void {
+  app!.classList.toggle("minimal-mode", minimalMode);
+  minimalToggle.checked = minimalMode;
+  const description = requiredElement<HTMLElement>(".page-heading h1 + p");
+  description.textContent = minimalMode
+    ? "List equations freely. Checking is paused."
+    : "Each row is checked against the original expression.";
+  equationList.querySelectorAll<MathfieldElement>("math-field.math-input").forEach((field, index) => {
+    field.setAttribute("aria-label", minimalMode ? `Equation ${index + 1}` : index === 0 ? "Original expression" : `Math step ${index + 1}`);
+  });
+}
+
+updateMinimalModeAppearance();
+minimalToggle.addEventListener("change", () => {
+  minimalMode = minimalToggle.checked;
+  referenceGeneration += 1;
+  assumptionCheckGeneration += 1;
+  window.clearTimeout(checkTimer);
+  window.clearTimeout(assumptionCheckTimer);
+  rowStates.clear();
+  savedConflictingAssumptions.clear();
+  candidateConflictingAssumptions.clear();
+  savedAssumptionConflictMessage = "";
+  candidateAssumptionConflicts = false;
+  assumptionError.hidden = true;
+  assumptionEditor.classList.remove("invalid");
+  assumptionEditor.removeAttribute("aria-invalid");
+  if (minimalMode) stopChecker();
+  updateMinimalModeAppearance();
+  renderAssumptionList();
+  documentState.rows.forEach((row) => updateRowResult(row.id));
+  try {
+    localStorage.setItem(MINIMAL_MODE_KEY, String(minimalMode));
+  } catch {
+    // Keep the selected mode for this session.
+  }
+  if (!minimalMode) {
+    void refreshSavedAssumptionConsistency();
+    checkAllRows();
+  }
+});
 const buildVersion = requiredElement<HTMLElement>("#build-version");
 
 const shortBuildCommit = __BUILD_COMMIT__ === "local"
@@ -176,13 +235,15 @@ buildVersion.title = [
   `Built: ${new Date(__BUILD_TIME__).toLocaleString()}`,
 ].join("\n");
 
-const AUTOMATIC_SHORTCUTS_KEY = "mathdocs-automatic-shortcuts";
+// Start existing devices with explicit completion too. Subsequent opt-ins
+// through Settings remain saved as usual.
+const AUTOMATIC_SHORTCUTS_KEY = "mathdocs-automatic-shortcuts-v2";
 
 function loadAutomaticShortcutsPreference(): boolean {
   try {
-    return localStorage.getItem(AUTOMATIC_SHORTCUTS_KEY) !== "false";
+    return localStorage.getItem(AUTOMATIC_SHORTCUTS_KEY) === "true";
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -197,6 +258,7 @@ function configureInlineShortcuts(field: MathfieldElement): void {
   if (!shortcuts) {
     shortcuts = { ...field.inlineShortcuts };
     defaultInlineShortcuts.set(field, shortcuts);
+    configureCommandTemplates(field, shortcuts);
   }
   field.inlineShortcuts = automaticShortcutsEnabled ? { ...shortcuts } : {};
 }
@@ -256,13 +318,14 @@ function showSavedAssumptionConflict(): void {
 }
 
 async function refreshSavedAssumptionConsistency(): Promise<void> {
+  if (minimalMode) return;
   const generation = ++assumptionCheckGeneration;
   const values = assumptions();
   const checked = await checkAssumptionsInWorker(
     values,
     documentState.rows[0]?.latex ?? "",
   );
-  if (generation !== assumptionCheckGeneration) return;
+  if (minimalMode || generation !== assumptionCheckGeneration) return;
   savedConflictingAssumptions = checked.contradiction
     ? new Set(checked.conflictingIndices)
     : new Set<number>();
@@ -273,6 +336,7 @@ async function refreshSavedAssumptionConsistency(): Promise<void> {
 
 function scheduleAssumptionConsistency(): void {
   window.clearTimeout(assumptionCheckTimer);
+  if (minimalMode) return;
   assumptionCheckTimer = window.setTimeout(() => {
     void refreshSavedAssumptionConsistency();
   }, 300);
@@ -349,6 +413,7 @@ assumptionEditor.addEventListener("beforeinput", (event: InputEvent) => {
 }, { capture: true });
 
 assumptionEditor.addEventListener("keydown", async (event: KeyboardEvent) => {
+  if (minimalMode) return;
   if (event.key !== "Enter") return;
   event.preventDefault();
   const submitted = assumptionEditor.value.trim();
@@ -357,7 +422,7 @@ assumptionEditor.addEventListener("keydown", async (event: KeyboardEvent) => {
   assumptionError.className = "assumption-error validating";
   assumptionError.textContent = "Checking assumption…";
   const validation = await validateAssumptionInWorker(submitted);
-  if (assumptionEditor.value.trim() !== submitted) return;
+  if (minimalMode || assumptionEditor.value.trim() !== submitted) return;
   if (!validation.valid) {
     assumptionError.className = "assumption-error invalid";
     assumptionError.textContent = validation.message;
@@ -381,7 +446,7 @@ assumptionEditor.addEventListener("keydown", async (event: KeyboardEvent) => {
     [...values, validation.latex],
     documentState.rows[0]?.latex ?? "",
   );
-  if (assumptionEditor.value.trim() !== submitted) return;
+  if (minimalMode || assumptionEditor.value.trim() !== submitted) return;
   if (consistency.contradiction) {
     const candidateIndex = values.length;
     candidateConflictingAssumptions = new Set(
@@ -445,6 +510,10 @@ function updateRowResult(rowId: string): void {
   const state = rowStates.get(rowId);
   const resultElement = rowElement.querySelector<HTMLElement>(".result");
   if (!resultElement) return;
+  if (minimalMode) {
+    resultElement.replaceChildren();
+    return;
+  }
   resultElement.className = `result ${state?.verdict ?? "idle"}`;
   const message = index === 0
     ? state?.message ?? "Every later row is compared with this one."
@@ -463,6 +532,7 @@ function updateRowResult(rowId: string): void {
 }
 
 async function checkRow(rowId: string): Promise<void> {
+  if (minimalMode) return;
   const index = documentState.rows.findIndex((row) => row.id === rowId);
   if (index <= 0) return;
   const reference = documentState.rows[0]?.latex ?? "";
@@ -480,6 +550,7 @@ async function checkRow(rowId: string): Promise<void> {
     timeoutMs: 1_200,
   });
   if (
+    minimalMode ||
     rowGenerations.get(rowId) !== generation ||
     checkedReferenceGeneration !== referenceGeneration ||
     documentState.rows.findIndex((row) => row.id === rowId) <= 0
@@ -509,11 +580,13 @@ async function checkRow(rowId: string): Promise<void> {
 }
 
 function checkAllRows(): void {
+  if (minimalMode) return;
   for (const row of documentState.rows.slice(1)) void checkRow(row.id);
 }
 
 function scheduleChecks(rowId: string, originalChanged: boolean): void {
   window.clearTimeout(checkTimer);
+  if (minimalMode) return;
   checkTimer = window.setTimeout(() => {
     if (originalChanged) checkAllRows();
     else void checkRow(rowId);
@@ -570,7 +643,7 @@ function renderRows(): void {
     field.value = row.latex;
     let emptyBackspaceReady = !field.value;
     field.className = "math-input";
-    field.setAttribute("aria-label", index === 0 ? "Original expression" : `Math step ${index + 1}`);
+    field.setAttribute("aria-label", minimalMode ? `Equation ${index + 1}` : index === 0 ? "Original expression" : `Math step ${index + 1}`);
     field.smartMode = true;
     field.popoverPolicy = "auto";
     field.mathVirtualKeyboardPolicy = "auto";

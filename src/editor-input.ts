@@ -2,8 +2,48 @@ import type { MathfieldElement } from "mathlive";
 
 type EditableMathfield = Pick<
   MathfieldElement,
-  "executeCommand" | "insert" | "mode"
+  "executeCommand" | "insert" | "mode" | "selection" | "getValue"
 >;
+
+const commandTemplates = new WeakMap<EditableMathfield, Map<string, string>>();
+
+export function configureCommandTemplates(
+  field: EditableMathfield,
+  shortcuts: MathfieldElement["inlineShortcuts"],
+): void {
+  const templates = new Map<string, string>();
+  for (const shortcut of Object.values(shortcuts)) {
+    const template = typeof shortcut === "string" ? shortcut : shortcut.value;
+    const command = template.match(/^(\\[a-zA-Z]+)(?=[{[_^])/u)?.[1];
+    if (command && template.includes("#?")) {
+      const existing = templates.get(command);
+      // Prefer the basic command over variants such as cbrt/nthroot, which
+      // share \\sqrt but add an optional index before its main argument.
+      if (!existing || template.length < existing.length) {
+        templates.set(command, template);
+      }
+    }
+  }
+  commandTemplates.set(field, templates);
+}
+
+function completeCommand(field: EditableMathfield): void {
+  field.executeCommand(["complete", "accept-all"]);
+  // Bare commands with missing arguments are selected as a whole by MathLive.
+  // Replace that incomplete selection using its built-in shortcut templates.
+  // No template is needed for symbols such as \\mu, whose caret is already after
+  // the rendered symbol, or for commands with arguments already supplied.
+  const selected = field.getValue(field.selection);
+  const command = selected.match(/^(\\[a-zA-Z]+)(?:\{\}|\{)*$/u)?.[1];
+  const template = command ? commandTemplates.get(field)?.get(command) : undefined;
+  if (template) {
+    field.insert(template, {
+      format: "latex",
+      mode: "math",
+      selectionMode: "placeholder",
+    });
+  }
+}
 
 type ConsumableEvent = Pick<Event, "preventDefault" | "stopImmediatePropagation">;
 
@@ -55,12 +95,6 @@ export function handleMathfieldKeydown(
   field: EditableMathfield,
   event: MathfieldKeyboardEvent,
 ): boolean {
-  if (event.key === "Enter" && field.mode === "latex") {
-    consume(event);
-    field.executeCommand(["complete", "accept-all"]);
-    return true;
-  }
-
   // Windows commonly exposes AltGr as Ctrl+Alt. It is a text-producing
   // modifier, not a command shortcut.
   const usesAltGraph =
@@ -68,6 +102,30 @@ export function handleMathfieldKeydown(
   const usesCommandModifier =
     event.metaKey || ((event.ctrlKey || event.altKey) && !usesAltGraph);
   if (event.isComposing || usesCommandModifier) return false;
+
+  if (field.mode === "latex") {
+    if (event.key === "Tab" || event.key === "Enter") {
+      consume(event);
+      completeCommand(field);
+      return true;
+    }
+    if (event.key === "Escape") {
+      // Keep unfinished LaTeX in the editor.
+      consume(event);
+      return true;
+    }
+    if (event.key === " " || event.key === "}") {
+      // MathLive automatically completes on Space or a final closing brace.
+      // Insert these literally so rendering requires Tab or Enter.
+      consume(event);
+      field.insert(event.key, {
+        format: "latex",
+        mode: "latex",
+        selectionMode: "after",
+      });
+      return true;
+    }
+  }
 
   return handleMathControlCharacter(field, event.key, event);
 }
@@ -81,6 +139,15 @@ export function handleMathfieldBeforeInput(
   // Windows and the browser actually produced.
   if (!event.isTrusted || event.inputType !== "insertText" || !event.data) {
     return false;
+  }
+  if (field.mode === "latex" && (event.data === " " || event.data === "}")) {
+    consume(event);
+    field.insert(event.data, {
+      format: "latex",
+      mode: "latex",
+      selectionMode: "after",
+    });
+    return true;
   }
   return handleMathControlCharacter(field, event.data, event);
 }

@@ -334,6 +334,39 @@ math-field.capture-assumption {
 
 .equation-list { display: grid; }
 
+.minimal-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: .8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.minimal-mode .legend,
+.minimal-mode .help,
+.minimal-mode .assumption-field,
+.minimal-mode .capture-assumptions,
+.minimal-mode .result {
+  display: none !important;
+}
+
+.minimal-mode .equation-row {
+  grid-template-columns: 38px minmax(0, 1fr) 30px;
+}
+
+.minimal-mode .sheet.exporting .equation-row {
+  grid-template-columns: 38px minmax(0, 1fr);
+}
+
+.minimal-mode .sequence { display: inline; }
+
+.minimal-mode math-field.math-input::part(menu-toggle),
+.minimal-mode math-field.math-input::part(virtual-keyboard-toggle) {
+  display: none;
+}
+
 .equation-row {
   min-height: 94px;
   display: grid;
